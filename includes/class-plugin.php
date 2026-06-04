@@ -20,6 +20,12 @@ class VTAIL_Plugin {
 		if ( is_admin() ) {
 			$admin = new VTAIL_Admin();
 			add_action( 'admin_menu', [ $admin, 'register_menu' ] );
+			add_action( 'admin_enqueue_scripts', function ( string $hook ): void {
+				if ( 'settings_page_vtail-rules' !== $hook ) {
+					return;
+				}
+				wp_enqueue_style( 'vtail-admin', VTAIL_URL . 'assets/css/admin.css', [], VTAIL_VERSION );
+			} );
 		}
 
 		$linker = new VTAIL_Linker();

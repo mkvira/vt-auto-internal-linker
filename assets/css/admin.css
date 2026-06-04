@@ -1,0 +1,45 @@
+/*
+ * VT Auto Internal Linker — admin page styles
+ *
+ * All selectors are scoped to .settings_page_vtail-rules, the body class
+ * WordPress automatically applies to this plugin's settings page. Nothing
+ * here bleeds into any other admin screen.
+ */
+
+/* ── Rules list table ────────────────────────────────────────────────── */
+
+/* Keep narrow columns from over-expanding */
+.settings_page_vtail-rules .column-max_per_post {
+	width: 90px;
+}
+
+.settings_page_vtail-rules .column-active {
+	width: 70px;
+}
+
+.settings_page_vtail-rules .column-url {
+	width: 30%;
+}
+
+/* Prevent long URLs from stretching or wrapping in their column */
+.settings_page_vtail-rules .column-url a {
+	display: inline-block;
+	max-width: 100%;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+	vertical-align: bottom;
+}
+
+/* ── Add / Edit form ─────────────────────────────────────────────────── */
+
+/* Number inputs (max_per_post, priority) don't need the full regular-text width */
+.settings_page_vtail-rules .form-table input.small-text {
+	width: 64px;
+}
+
+/* Tighten the back-link paragraph so it sits close to the heading */
+.settings_page_vtail-rules .wrap > p:first-of-type {
+	margin-top: 6px;
+	margin-bottom: 16px;
+}
