@@ -99,7 +99,7 @@ class VTAIL_Rules_List_Table extends WP_List_Table {
 	}
 
 	/**
-	 * URL column — renders as a clickable link truncated for readability.
+	 * URL column — renders as a clickable link.
 	 *
 	 * @param array<string, mixed> $item
 	 */
@@ -144,13 +144,31 @@ class VTAIL_Admin {
 			return;
 		}
 
+		$action = isset( $_GET['action'] ) ? sanitize_key( $_GET['action'] ) : '';
+
+		if ( 'add' === $action || 'edit' === $action ) {
+			$this->render_form_page( $action );
+			return;
+		}
+
+		$this->render_list_page();
+	}
+
+	// -------------------------------------------------------------------------
+	// List view
+	// -------------------------------------------------------------------------
+
+	private function render_list_page(): void {
 		$this->handle_delete();
 
-		$table = new VTAIL_Rules_List_Table();
+		$table   = new VTAIL_Rules_List_Table();
 		$table->prepare_items();
+		$add_url = add_query_arg( [ 'page' => 'vtail-rules', 'action' => 'add' ], admin_url( 'options-general.php' ) );
 
 		echo '<div class="wrap">';
-		echo '<h1>' . esc_html( get_admin_page_title() ) . '</h1>';
+		echo '<h1 class="wp-heading-inline">' . esc_html( get_admin_page_title() ) . '</h1>';
+		echo '<a href="' . esc_url( $add_url ) . '" class="page-title-action">' . esc_html__( 'Add New Rule', 'vt-auto-internal-linker' ) . '</a>';
+		echo '<hr class="wp-header-end">';
 		$this->show_notice();
 		echo '<form method="get">';
 		echo '<input type="hidden" name="page" value="vtail-rules" />';
@@ -181,9 +199,161 @@ class VTAIL_Admin {
 
 	private function show_notice(): void {
 		if ( ! empty( $_GET['deleted'] ) ) {
-			echo '<div class="notice notice-success is-dismissible"><p>'
-				. esc_html__( 'Rule deleted successfully.', 'vt-auto-internal-linker' )
-				. '</p></div>';
+			echo '<div class="notice notice-success is-dismissible"><p>' . esc_html__( 'Rule deleted successfully.', 'vt-auto-internal-linker' ) . '</p></div>';
+		}
+		if ( ! empty( $_GET['saved'] ) ) {
+			echo '<div class="notice notice-success is-dismissible"><p>' . esc_html__( 'Rule saved successfully.', 'vt-auto-internal-linker' ) . '</p></div>';
+		}
+	}
+
+	// -------------------------------------------------------------------------
+	// Add / Edit form view
+	// -------------------------------------------------------------------------
+
+	private function render_form_page( string $action ): void {
+		$id    = isset( $_GET['id'] ) ? absint( $_GET['id'] ) : 0;
+		$rule  = $id > 0 ? VTAIL_Rules_DB::get_by_id( $id ) : null;
+		$error = $this->handle_save(); // redirects on success; returns null or error string
+
+		// On validation failure, repopulate from submitted values so the user's input isn't lost.
+		if ( null !== $error ) {
+			$rule = $this->extract_post_values();
+		}
+
+		$defaults = [ 'keyword' => '', 'url' => '', 'case_sensitive' => 0,
+		              'max_per_post' => 1, 'nofollow' => 0, 'new_tab' => 0,
+		              'priority' => 10, 'active' => 1 ];
+		$values = $rule ?? $defaults;
+		$title  = 'edit' === $action
+			? __( 'Edit Rule', 'vt-auto-internal-linker' )
+			: __( 'Add New Rule', 'vt-auto-internal-linker' );
+
+		echo '<div class="wrap">';
+		echo '<h1>' . esc_html( $title ) . '</h1>';
+		$this->render_form( $id, $values, $error );
+		echo '</div>';
+	}
+
+	private function handle_save(): ?string {
+		if ( 'POST' !== $_SERVER['REQUEST_METHOD'] ) {
+			return null;
+		}
+
+		// Dies on nonce failure — intentional, no recovery needed.
+		check_admin_referer( 'vtail_save_rule' );
+
+		$id      = isset( $_POST['id'] ) ? absint( $_POST['id'] ) : 0;
+		$keyword = sanitize_text_field( wp_unslash( $_POST['keyword'] ?? '' ) );
+		$url     = esc_url_raw( wp_unslash( $_POST['url'] ?? '' ) );
+
+		if ( '' === $keyword ) {
+			return __( 'Keyword is required.', 'vt-auto-internal-linker' );
+		}
+		if ( '' === $url ) {
+			return __( 'URL is required.', 'vt-auto-internal-linker' );
+		}
+
+		$data = $this->build_rule_data( $keyword, $url );
+		$id > 0 ? VTAIL_Rules_DB::update( $id, $data ) : VTAIL_Rules_DB::insert( $data );
+
+		wp_safe_redirect( add_query_arg( [ 'page' => 'vtail-rules', 'saved' => '1' ], admin_url( 'options-general.php' ) ) );
+		exit;
+	}
+
+	/**
+	 * Builds the data array from $_POST for DB insert/update.
+	 * keyword and url are pre-sanitized by the caller.
+	 *
+	 * @return array<string, mixed>
+	 */
+	private function build_rule_data( string $keyword, string $url ): array {
+		return [
+			'keyword'        => $keyword,
+			'url'            => $url,
+			'case_sensitive' => absint( $_POST['case_sensitive'] ?? 0 ),
+			'max_per_post'   => absint( $_POST['max_per_post'] ?? 1 ),
+			'nofollow'       => absint( $_POST['nofollow'] ?? 0 ),
+			'new_tab'        => absint( $_POST['new_tab'] ?? 0 ),
+			'priority'       => absint( $_POST['priority'] ?? 10 ),
+			'active'         => absint( $_POST['active'] ?? 0 ),
+		];
+	}
+
+	/**
+	 * Re-sanitizes $_POST values for form repopulation after a validation error.
+	 *
+	 * @return array<string, mixed>
+	 */
+	private function extract_post_values(): array {
+		return [
+			'keyword'        => sanitize_text_field( wp_unslash( $_POST['keyword'] ?? '' ) ),
+			'url'            => esc_url_raw( wp_unslash( $_POST['url'] ?? '' ) ),
+			'case_sensitive' => absint( $_POST['case_sensitive'] ?? 0 ),
+			'max_per_post'   => absint( $_POST['max_per_post'] ?? 1 ),
+			'nofollow'       => absint( $_POST['nofollow'] ?? 0 ),
+			'new_tab'        => absint( $_POST['new_tab'] ?? 0 ),
+			'priority'       => absint( $_POST['priority'] ?? 10 ),
+			'active'         => absint( $_POST['active'] ?? 0 ),
+		];
+	}
+
+	private function render_form( int $id, array $values, ?string $error ): void {
+		$back_url = add_query_arg( [ 'page' => 'vtail-rules' ], admin_url( 'options-general.php' ) );
+		$args     = array_filter( [ 'page' => 'vtail-rules', 'action' => $id > 0 ? 'edit' : 'add', 'id' => $id ?: null ] );
+		$form_url = add_query_arg( $args, admin_url( 'options-general.php' ) );
+
+		if ( $error ) {
+			echo '<div class="notice notice-error"><p>' . esc_html( $error ) . '</p></div>';
+		}
+
+		echo '<p><a href="' . esc_url( $back_url ) . '">&larr; ' . esc_html__( 'Back to Rules', 'vt-auto-internal-linker' ) . '</a></p>';
+		echo '<form method="post" action="' . esc_url( $form_url ) . '">';
+		wp_nonce_field( 'vtail_save_rule' );
+		echo '<input type="hidden" name="id" value="' . esc_attr( (string) $id ) . '" />';
+		echo '<table class="form-table"><tbody>';
+		$this->render_form_fields( $values );
+		$this->render_form_toggles( $values );
+		echo '</tbody></table>';
+		submit_button( $id > 0 ? __( 'Update Rule', 'vt-auto-internal-linker' ) : __( 'Add Rule', 'vt-auto-internal-linker' ) );
+		echo '</form>';
+	}
+
+	private function render_form_fields( array $values ): void {
+		?>
+		<tr>
+			<th scope="row"><label for="keyword"><?php esc_html_e( 'Keyword', 'vt-auto-internal-linker' ); ?></label></th>
+			<td><input type="text" id="keyword" name="keyword" value="<?php echo esc_attr( (string) $values['keyword'] ); ?>" class="regular-text" required /></td>
+		</tr>
+		<tr>
+			<th scope="row"><label for="url"><?php esc_html_e( 'URL', 'vt-auto-internal-linker' ); ?></label></th>
+			<td><input type="text" id="url" name="url" value="<?php echo esc_attr( (string) $values['url'] ); ?>" class="regular-text" required /></td>
+		</tr>
+		<tr>
+			<th scope="row"><label for="max_per_post"><?php esc_html_e( 'Max per Post', 'vt-auto-internal-linker' ); ?></label></th>
+			<td><input type="number" id="max_per_post" name="max_per_post" value="<?php echo esc_attr( (string) $values['max_per_post'] ); ?>" min="1" class="small-text" /></td>
+		</tr>
+		<tr>
+			<th scope="row"><label for="priority"><?php esc_html_e( 'Priority', 'vt-auto-internal-linker' ); ?></label></th>
+			<td><input type="number" id="priority" name="priority" value="<?php echo esc_attr( (string) $values['priority'] ); ?>" min="0" class="small-text" /></td>
+		</tr>
+		<?php
+	}
+
+	private function render_form_toggles( array $values ): void {
+		$checkboxes = [
+			'case_sensitive' => __( 'Case Sensitive', 'vt-auto-internal-linker' ),
+			'nofollow'       => __( 'Nofollow', 'vt-auto-internal-linker' ),
+			'new_tab'        => __( 'Open in New Tab', 'vt-auto-internal-linker' ),
+			'active'         => __( 'Active', 'vt-auto-internal-linker' ),
+		];
+
+		foreach ( $checkboxes as $name => $label ) {
+			?>
+			<tr>
+				<th scope="row"><label for="<?php echo esc_attr( $name ); ?>"><?php echo esc_html( $label ); ?></label></th>
+				<td><input type="checkbox" id="<?php echo esc_attr( $name ); ?>" name="<?php echo esc_attr( $name ); ?>" value="1" <?php checked( 1, (int) ( $values[ $name ] ?? 0 ) ); ?> /></td>
+			</tr>
+			<?php
 		}
 	}
 }
