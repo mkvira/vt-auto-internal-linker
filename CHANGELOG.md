@@ -10,11 +10,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
-- Initial plugin structure and bootstrap
-- Custom database table for keyword/URL rules
-- Admin CRUD interface for managing rules
-- Automatic keyword-to-link replacement on `the_content` filter
-- Support for case sensitivity, max occurrences per post, nofollow, new tab options
-- WordPress Multisite compatibility
-- Full internationalization support (`.pot` file)
-- GPL-2.0-or-later license
+- Plugin bootstrap: main plugin file with full WordPress header, constants (`VTAIL_VERSION`, `VTAIL_PATH`, `VTAIL_URL`), and `plugins_loaded` initialisation
+- `VTAIL_Plugin` core class with hook registration skeleton
+- `VTAIL_Rules_DB` class with `create_table()` — creates `{prefix}vtail_rules` on activation via `dbDelta()`
+- Activation hook wires table creation; deactivation hook preserves data
+- `readme.txt` in WordPress.org required format
+- `CHANGELOG.md` initialised
