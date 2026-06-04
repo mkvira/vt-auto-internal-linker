@@ -27,6 +27,10 @@ define( 'VTAIL_PATH', plugin_dir_path( __FILE__ ) );
 define( 'VTAIL_URL', plugin_dir_url( __FILE__ ) );
 
 require_once VTAIL_PATH . 'includes/class-plugin.php';
+require_once VTAIL_PATH . 'includes/class-rules-db.php';
+
+register_activation_hook( __FILE__, [ 'VTAIL_Rules_DB', 'create_table' ] );
+register_deactivation_hook( __FILE__, function (): void {} );
 
 add_action( 'plugins_loaded', function (): void {
 	$plugin = new VTAIL_Plugin();
