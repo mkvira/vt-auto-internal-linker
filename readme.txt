@@ -48,6 +48,12 @@ Yes, as long as the page builder or block editor outputs content through the sta
 
 = 1.0.0 =
 * Initial release.
+* Keyword-to-URL auto-linking via the `the_content` filter — database content is never modified.
+* Admin UI under Settings with full CRUD (add, edit, delete) for keyword rules.
+* Per-rule controls: case sensitivity, max occurrences per post, nofollow, open in new tab, priority.
+* Skips replacement inside existing links, code blocks, pre blocks, and all HTML tag attributes.
+* Self-link prevention: rules whose URL matches the current page are automatically skipped.
+* Fully internationalised with `.pot` file included.
 
 == Upgrade Notice ==
 
