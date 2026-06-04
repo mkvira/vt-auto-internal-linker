@@ -29,10 +29,14 @@ class VTAIL_Linker {
 			return $content;
 		}
 
+		$current_url  = (string) get_permalink();
 		$placeholders = [];
 		$content      = $this->protect_blocks( $content, $placeholders );
 
 		foreach ( $rules as $rule ) {
+			if ( $this->is_self_link( (string) $rule['url'], $current_url ) ) {
+				continue;
+			}
 			$content = $this->apply_rule( $content, $rule );
 		}
 
@@ -40,12 +44,13 @@ class VTAIL_Linker {
 	}
 
 	/**
-	 * Swaps <a>, <pre>, <code> blocks for opaque placeholders so the
-	 * keyword replacer never inspects their contents.
+	 * Swaps protected regions for opaque placeholders before replacement runs.
+	 * First alternative captures full <a>/<pre>/<code> blocks (including inner HTML).
+	 * Second alternative captures every other HTML tag, protecting attributes from replacement.
 	 */
 	private function protect_blocks( string $content, array &$placeholders ): string {
 		return preg_replace_callback(
-			'/<(a|pre|code)(?:\s[^>]*)?>.*?<\/\1>/is',
+			'/<(a|pre|code)(?:\s[^>]*)?>.*?<\/\1>|<[^>]+>/is',
 			function ( array $match ) use ( &$placeholders ): string {
 				$index                = count( $placeholders );
 				$placeholders[$index] = $match[0];
@@ -63,9 +68,14 @@ class VTAIL_Linker {
 	}
 
 	private function apply_rule( string $content, array $rule ): string {
+		$keyword = (string) $rule['keyword'];
+		if ( '' === $keyword ) {
+			return $content;
+		}
+
 		$max     = max( 1, (int) $rule['max_per_post'] );
 		$count   = 0;
-		$pattern = $this->build_pattern( (string) $rule['keyword'], (bool) $rule['case_sensitive'] );
+		$pattern = $this->build_pattern( $keyword, (bool) $rule['case_sensitive'] );
 
 		return preg_replace_callback(
 			$pattern,
@@ -83,7 +93,19 @@ class VTAIL_Linker {
 	private function build_pattern( string $keyword, bool $case_sensitive ): string {
 		$escaped = preg_quote( $keyword, '/' );
 		$flags   = $case_sensitive ? 'u' : 'ui';
-		return '/\b' . $escaped . '\b/' . $flags;
+		// Lookarounds rather than \b: \b fails when keyword starts/ends with non-word chars (e.g. "C++").
+		return '/(?<!\w)' . $escaped . '(?!\w)/' . $flags;
+	}
+
+	/**
+	 * Returns true when $rule_url points at the page currently being rendered,
+	 * preventing a post from linking to itself.
+	 */
+	private function is_self_link( string $rule_url, string $current_url ): bool {
+		if ( '' === $current_url ) {
+			return false;
+		}
+		return untrailingslashit( $rule_url ) === untrailingslashit( $current_url );
 	}
 
 	private function build_link( string $text, array $rule ): string {
