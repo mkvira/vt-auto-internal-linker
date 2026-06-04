@@ -14,5 +14,11 @@ if ( ! defined( 'ABSPATH' ) ) {
 class VTAIL_Plugin {
 
 	public function init(): void {
+		require_once VTAIL_PATH . 'includes/class-admin.php';
+
+		if ( is_admin() ) {
+			$admin = new VTAIL_Admin();
+			add_action( 'admin_menu', [ $admin, 'register_menu' ] );
+		}
 	}
 }
