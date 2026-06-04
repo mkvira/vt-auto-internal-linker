@@ -88,9 +88,8 @@ class VTAIL_Rules_List_Table extends WP_List_Table {
 				esc_html__( 'Edit', 'vt-auto-internal-linker' )
 			),
 			'delete' => sprintf(
-				'<a href="%s" onclick="return confirm(\'%s\')">%s</a>',
+				'<a href="%s">%s</a>',
 				esc_url( $delete_url ),
-				esc_js( __( 'Delete this rule?', 'vt-auto-internal-linker' ) ),
 				esc_html__( 'Delete', 'vt-auto-internal-linker' )
 			),
 		];
