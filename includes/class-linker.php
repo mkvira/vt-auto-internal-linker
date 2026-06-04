@@ -30,8 +30,9 @@ class VTAIL_Linker {
 		}
 
 		$current_url  = (string) get_permalink();
+		$block_tags   = $this->get_block_tags();
 		$placeholders = [];
-		$content      = $this->protect_blocks( $content, $placeholders );
+		$content      = $this->protect_blocks( $content, $placeholders, $block_tags );
 
 		foreach ( $rules as $rule ) {
 			if ( $this->is_self_link( (string) $rule['url'], $current_url ) ) {
@@ -44,13 +45,30 @@ class VTAIL_Linker {
 	}
 
 	/**
-	 * Swaps protected regions for opaque placeholders before replacement runs.
-	 * First alternative captures full <a>/<pre>/<code> blocks (including inner HTML).
-	 * Second alternative captures every other HTML tag, protecting attributes from replacement.
+	 * Merges hardcoded always-protected tags with the user-configured exclude list.
+	 * a/pre/code are protected regardless of what the option contains.
+	 *
+	 * @return list<string>
 	 */
-	private function protect_blocks( string $content, array &$placeholders ): string {
+	private function get_block_tags(): array {
+		$hardcoded = [ 'a', 'pre', 'code' ];
+		$option    = (string) get_option( 'vtail_exclude_tags', 'h1,h2,h3,h4,h5,h6' );
+		$extra     = array_filter( array_map( 'trim', explode( ',', $option ) ) );
+		return array_values( array_unique( array_merge( $hardcoded, $extra ) ) );
+	}
+
+	/**
+	 * Swaps protected regions for opaque placeholders before replacement runs.
+	 * First alternative captures full block-level tag content (inner HTML included).
+	 * Second alternative captures every other HTML tag, protecting attributes from replacement.
+	 *
+	 * @param list<string> $block_tags Tag names whose full content should be protected.
+	 */
+	private function protect_blocks( string $content, array &$placeholders, array $block_tags ): string {
+		$alts    = implode( '|', array_map( fn( string $t ): string => preg_quote( $t, '/' ), $block_tags ) );
+		$pattern = '/<(' . $alts . ')(?:\s[^>]*)?>.*?<\/\1>|<[^>]+>/is';
 		return preg_replace_callback(
-			'/<(a|pre|code)(?:\s[^>]*)?>.*?<\/\1>|<[^>]+>/is',
+			$pattern,
 			function ( array $match ) use ( &$placeholders ): string {
 				$index                = count( $placeholders );
 				$placeholders[$index] = $match[0];

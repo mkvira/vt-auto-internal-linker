@@ -159,6 +159,7 @@ class VTAIL_Admin {
 
 	private function render_list_page(): void {
 		$this->handle_delete();
+		$this->handle_settings_save();
 
 		$table   = new VTAIL_Rules_List_Table();
 		$table->prepare_items();
@@ -173,6 +174,7 @@ class VTAIL_Admin {
 		echo '<input type="hidden" name="page" value="vtail-rules" />';
 		$table->display();
 		echo '</form>';
+		$this->render_settings_section();
 		echo '</div>';
 	}
 
@@ -203,6 +205,43 @@ class VTAIL_Admin {
 		if ( ! empty( $_GET['saved'] ) ) {
 			echo '<div class="notice notice-success is-dismissible"><p>' . esc_html__( 'Rule saved successfully.', 'vt-auto-internal-linker' ) . '</p></div>';
 		}
+		if ( ! empty( $_GET['settings_saved'] ) ) {
+			echo '<div class="notice notice-success is-dismissible"><p>' . esc_html__( 'Settings saved.', 'vt-auto-internal-linker' ) . '</p></div>';
+		}
+	}
+
+	private function handle_settings_save(): void {
+		if ( empty( $_POST['vtail_settings_nonce'] ) ) {
+			return;
+		}
+
+		check_admin_referer( 'vtail_save_settings', 'vtail_settings_nonce' );
+
+		$raw   = sanitize_text_field( wp_unslash( $_POST['vtail_exclude_tags'] ?? '' ) );
+		$clean = preg_replace( '/[^a-z0-9,\-]/', '', strtolower( str_replace( ' ', '', $raw ) ) );
+		update_option( 'vtail_exclude_tags', $clean );
+
+		wp_safe_redirect( add_query_arg( [ 'page' => 'vtail-rules', 'settings_saved' => '1' ], admin_url( 'options-general.php' ) ) );
+		exit;
+	}
+
+	private function render_settings_section(): void {
+		$current  = (string) get_option( 'vtail_exclude_tags', 'h1,h2,h3,h4,h5,h6' );
+		$form_url = add_query_arg( [ 'page' => 'vtail-rules' ], admin_url( 'options-general.php' ) );
+
+		echo '<hr />';
+		echo '<h2>' . esc_html__( 'Global Settings', 'vt-auto-internal-linker' ) . '</h2>';
+		echo '<form method="post" action="' . esc_url( $form_url ) . '">';
+		wp_nonce_field( 'vtail_save_settings', 'vtail_settings_nonce' );
+		echo '<table class="form-table"><tbody><tr>';
+		echo '<th scope="row"><label for="vtail_exclude_tags">' . esc_html__( 'Exclude Tags', 'vt-auto-internal-linker' ) . '</label></th>';
+		echo '<td>';
+		echo '<input type="text" id="vtail_exclude_tags" name="vtail_exclude_tags" value="' . esc_attr( $current ) . '" class="regular-text" />';
+		echo '<p class="description">' . esc_html__( 'Comma-separated HTML tags to skip during linking (e.g. h1,h2,h3)', 'vt-auto-internal-linker' ) . '</p>';
+		echo '</td>';
+		echo '</tr></tbody></table>';
+		submit_button( __( 'Save Settings', 'vt-auto-internal-linker' ) );
+		echo '</form>';
 	}
 
 	// -------------------------------------------------------------------------
