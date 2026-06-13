@@ -17,13 +17,15 @@ class VTAIL_Linker {
 	private const PLACEHOLDER = "\x00VTAIL_%d\x00";
 
 	/**
-	 * Entry point hooked to the_content. Fetches active rules and applies each.
+	 * Entry point hooked to the_content.
+	 * Bails early on non-singular views and empty content to avoid unnecessary work.
 	 */
 	public function process_content( string $content ): string {
-		$rules = array_filter(
-			VTAIL_Rules_DB::get_all(),
-			static fn( array $r ): bool => 1 === (int) $r['active']
-		);
+		if ( ! is_singular() || '' === trim( $content ) ) {
+			return $content;
+		}
+
+		$rules = VTAIL_Rules_DB::get_active_rules_with_keywords();
 
 		if ( empty( $rules ) ) {
 			return $content;
@@ -35,7 +37,7 @@ class VTAIL_Linker {
 		$content      = $this->protect_blocks( $content, $placeholders, $block_tags );
 
 		foreach ( $rules as $rule ) {
-			if ( $this->is_self_link( (string) $rule['url'], $current_url ) ) {
+			if ( $this->is_self_link( $rule['url'], $current_url ) ) {
 				continue;
 			}
 			$content = $this->apply_rule( $content, $rule );
@@ -85,27 +87,80 @@ class VTAIL_Linker {
 		return $content;
 	}
 
+	/**
+	 * Applies all keywords for a single rule, respecting the rule-level max_per_post
+	 * cap across all keywords combined. Keywords are already sorted by priority ASC.
+	 */
 	private function apply_rule( string $content, array $rule ): string {
-		$keyword = (string) $rule['keyword'];
-		if ( '' === $keyword ) {
+		$links_to_url = 0;
+		$rule_max     = max( 1, (int) $rule['max_per_post'] );
+
+		foreach ( $rule['keywords'] as $keyword ) {
+			if ( $links_to_url >= $rule_max ) {
+				break;
+			}
+			$content = $this->apply_keyword( $content, $keyword, $rule['url'], $rule_max, $links_to_url );
+		}
+
+		return $content;
+	}
+
+	/**
+	 * Applies a single keyword, respecting its own max_per_post, total_limit, and
+	 * the shared rule-level counter $links_to_url (passed by reference).
+	 */
+	private function apply_keyword(
+		string $content,
+		array $keyword,
+		string $rule_url,
+		int $rule_max,
+		int &$links_to_url
+	): string {
+		$kw_text = (string) $keyword['keyword'];
+		if ( '' === $kw_text ) {
 			return $content;
 		}
 
-		$max     = max( 1, (int) $rule['max_per_post'] );
-		$count   = 0;
-		$pattern = $this->build_pattern( $keyword, (bool) $rule['case_sensitive'] );
+		if ( $this->is_total_limit_reached( $keyword ) ) {
+			return $content;
+		}
+
+		$kw_max  = max( 1, (int) $keyword['max_per_post'] );
+		$kw_count = 0;
+		$pattern = $this->build_pattern( $kw_text, (bool) $keyword['case_sensitive'] );
+		$url     = $rule_url . ( '' !== $keyword['anchor'] ? '#' . $keyword['anchor'] : '' );
 
 		return preg_replace_callback(
 			$pattern,
-			function ( array $match ) use ( $rule, $max, &$count ): string {
-				if ( $count >= $max ) {
+			function ( array $match ) use ( $keyword, $url, $kw_max, $rule_max, &$kw_count, &$links_to_url ): string {
+				if ( $kw_count >= $kw_max || $links_to_url >= $rule_max ) {
 					return $match[0];
 				}
-				++$count;
-				return $this->build_link( $match[0], $rule );
+				++$kw_count;
+				++$links_to_url;
+				return $this->build_link( $match[0], $url, $keyword );
 			},
 			$content
 		) ?? $content;
+	}
+
+	/**
+	 * Checks whether a keyword has reached its site-wide total_limit.
+	 * Stats are loaded once per request and held in a static variable.
+	 */
+	private function is_total_limit_reached( array $keyword ): bool {
+		$total_limit = (int) $keyword['total_limit'];
+		if ( 0 === $total_limit ) {
+			return false;
+		}
+
+		static $stats = null;
+		if ( null === $stats ) {
+			$stats = VTAIL_Rules_DB::get_stats();
+		}
+
+		$count = (int) ( $stats[ (string) $keyword['id'] ]['count'] ?? 0 );
+		return $count >= $total_limit;
 	}
 
 	private function build_pattern( string $keyword, bool $case_sensitive ): string {
@@ -123,26 +178,28 @@ class VTAIL_Linker {
 		if ( '' === $current_url ) {
 			return false;
 		}
-		return untrailingslashit( $rule_url ) === untrailingslashit( $current_url );
+		// Strip anchor from rule_url before comparing — #section is not part of the page URL.
+		$bare_url = (string) strtok( $rule_url, '#' );
+		return untrailingslashit( $bare_url ) === untrailingslashit( $current_url );
 	}
 
-	private function build_link( string $text, array $rule ): string {
+	private function build_link( string $text, string $url, array $keyword ): string {
 		$rel = [];
 
-		if ( (int) $rule['nofollow'] ) {
+		if ( (int) $keyword['nofollow'] ) {
 			$rel[] = 'nofollow';
 		}
-		if ( (int) $rule['new_tab'] ) {
+		if ( (int) $keyword['new_tab'] ) {
 			$rel[] = 'noreferrer';
 			$rel[] = 'noopener';
 		}
 
-		$attrs = 'href="' . esc_url( (string) $rule['url'] ) . '"';
+		$attrs = 'href="' . esc_url( $url ) . '"';
 
 		if ( ! empty( $rel ) ) {
 			$attrs .= ' rel="' . implode( ' ', $rel ) . '"';
 		}
-		if ( (int) $rule['new_tab'] ) {
+		if ( (int) $keyword['new_tab'] ) {
 			$attrs .= ' target="_blank"';
 		}
 
