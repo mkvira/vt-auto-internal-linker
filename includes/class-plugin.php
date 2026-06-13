@@ -24,6 +24,7 @@ class VTAIL_Plugin {
 		if ( is_admin() ) {
 			$admin = new VTAIL_Admin();
 			add_action( 'admin_menu', [ $admin, 'register_menu' ] );
+			add_action( 'admin_init', [ $admin, 'handle_early_forms' ] );
 			add_action( 'wp_ajax_vtail_save_keyword', [ $admin, 'handle_save_keyword' ] );
 			add_action( 'wp_ajax_vtail_delete_keyword', [ $admin, 'handle_delete_keyword' ] );
 			add_action( 'wp_ajax_vtail_scan_stats', [ $admin, 'handle_scan_stats' ] );

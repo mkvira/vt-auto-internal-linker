@@ -107,6 +107,9 @@ class VTAIL_Rules_List_Table extends WP_List_Table {
 
 class VTAIL_Admin {
 
+	/** Stores a validation error from handle_early_forms() for display in render_form_page(). */
+	private ?string $form_error = null;
+
 	public function register_menu(): void {
 		add_options_page(
 			__( 'Auto Internal Linker', 'vt-auto-internal-linker' ),
@@ -232,12 +235,88 @@ class VTAIL_Admin {
 	}
 
 	// -------------------------------------------------------------------------
+	// Early form processing — runs on admin_init, before any HTML output
+	// -------------------------------------------------------------------------
+
+	/**
+	 * Processes form submissions and redirects before WordPress outputs anything.
+	 * Called via add_action('admin_init') so wp_safe_redirect() always works.
+	 */
+	public function handle_early_forms(): void {
+		if ( ! isset( $_GET['page'] ) || 'vtail-rules' !== sanitize_key( $_GET['page'] ) ) {
+			return;
+		}
+		if ( ! current_user_can( 'manage_options' ) ) {
+			return;
+		}
+
+		$get_action = isset( $_GET['action'] ) ? sanitize_key( $_GET['action'] ) : '';
+
+		if ( 'delete' === $get_action ) {
+			$this->process_delete_rule();
+			return;
+		}
+
+		if ( 'POST' !== $_SERVER['REQUEST_METHOD'] ) {
+			return;
+		}
+
+		if ( ! empty( $_POST['vtail_settings_nonce'] ) ) {
+			$this->process_settings_save();
+			return;
+		}
+
+		if ( in_array( $get_action, [ 'add', 'edit' ], true ) ) {
+			$this->form_error = $this->process_rule_save();
+		}
+	}
+
+	private function process_delete_rule(): void {
+		$id    = isset( $_GET['id'] ) ? absint( $_GET['id'] ) : 0;
+		$nonce = isset( $_GET['_wpnonce'] ) ? sanitize_text_field( wp_unslash( $_GET['_wpnonce'] ) ) : '';
+
+		if ( ! wp_verify_nonce( $nonce, 'vtail_delete_rule_' . $id ) ) {
+			wp_die( esc_html__( 'Security check failed.', 'vt-auto-internal-linker' ) );
+		}
+
+		VTAIL_Rules_DB::delete_rule( $id );
+
+		wp_safe_redirect( add_query_arg( [ 'page' => 'vtail-rules', 'deleted' => '1' ], admin_url( 'options-general.php' ) ) );
+		exit;
+	}
+
+	private function process_settings_save(): void {
+		check_admin_referer( 'vtail_save_settings', 'vtail_settings_nonce' );
+
+		$raw   = sanitize_text_field( wp_unslash( $_POST['vtail_exclude_tags'] ?? '' ) );
+		$clean = preg_replace( '/[^a-z0-9,\-]/', '', strtolower( str_replace( ' ', '', $raw ) ) );
+		update_option( 'vtail_exclude_tags', $clean );
+
+		wp_safe_redirect( add_query_arg( [ 'page' => 'vtail-rules', 'settings_saved' => '1' ], admin_url( 'options-general.php' ) ) );
+		exit;
+	}
+
+	private function process_rule_save(): ?string {
+		check_admin_referer( 'vtail_save_rule' );
+
+		$url = esc_url_raw( wp_unslash( $_POST['url'] ?? '' ) );
+		if ( '' === $url ) {
+			return __( 'URL is required.', 'vt-auto-internal-linker' );
+		}
+
+		$id   = isset( $_POST['id'] ) ? absint( $_POST['id'] ) : 0;
+		$data = $this->extract_rule_post_values();
+		$id > 0 ? VTAIL_Rules_DB::update_rule( $id, $data ) : $id = (int) VTAIL_Rules_DB::insert_rule( $data );
+
+		wp_safe_redirect( add_query_arg( [ 'page' => 'vtail-rules', 'action' => 'edit', 'id' => $id, 'saved' => '1' ], admin_url( 'options-general.php' ) ) );
+		exit;
+	}
+
+	// -------------------------------------------------------------------------
 	// List view
 	// -------------------------------------------------------------------------
 
 	private function render_list_page(): void {
-		$this->handle_delete_rule();
-		$this->handle_settings_save();
 
 		$table   = new VTAIL_Rules_List_Table();
 		$table->prepare_items();
@@ -256,24 +335,6 @@ class VTAIL_Admin {
 		echo '</div>';
 	}
 
-	private function handle_delete_rule(): void {
-		if ( 'delete' !== ( isset( $_GET['action'] ) ? sanitize_key( $_GET['action'] ) : '' ) ) {
-			return;
-		}
-
-		$id    = isset( $_GET['id'] ) ? absint( $_GET['id'] ) : 0;
-		$nonce = isset( $_GET['_wpnonce'] ) ? sanitize_text_field( wp_unslash( $_GET['_wpnonce'] ) ) : '';
-
-		if ( ! wp_verify_nonce( $nonce, 'vtail_delete_rule_' . $id ) ) {
-			wp_die( esc_html__( 'Security check failed.', 'vt-auto-internal-linker' ) );
-		}
-
-		VTAIL_Rules_DB::delete_rule( $id );
-
-		wp_safe_redirect( add_query_arg( [ 'page' => 'vtail-rules', 'deleted' => '1' ], admin_url( 'options-general.php' ) ) );
-		exit;
-	}
-
 	private function show_notice(): void {
 		if ( ! empty( $_GET['deleted'] ) ) {
 			echo '<div class="notice notice-success is-dismissible"><p>' . esc_html__( 'Rule deleted successfully.', 'vt-auto-internal-linker' ) . '</p></div>';
@@ -284,21 +345,6 @@ class VTAIL_Admin {
 		if ( ! empty( $_GET['settings_saved'] ) ) {
 			echo '<div class="notice notice-success is-dismissible"><p>' . esc_html__( 'Settings saved.', 'vt-auto-internal-linker' ) . '</p></div>';
 		}
-	}
-
-	private function handle_settings_save(): void {
-		if ( empty( $_POST['vtail_settings_nonce'] ) ) {
-			return;
-		}
-
-		check_admin_referer( 'vtail_save_settings', 'vtail_settings_nonce' );
-
-		$raw   = sanitize_text_field( wp_unslash( $_POST['vtail_exclude_tags'] ?? '' ) );
-		$clean = preg_replace( '/[^a-z0-9,\-]/', '', strtolower( str_replace( ' ', '', $raw ) ) );
-		update_option( 'vtail_exclude_tags', $clean );
-
-		wp_safe_redirect( add_query_arg( [ 'page' => 'vtail-rules', 'settings_saved' => '1' ], admin_url( 'options-general.php' ) ) );
-		exit;
 	}
 
 	private function render_settings_section(): void {
@@ -325,7 +371,7 @@ class VTAIL_Admin {
 	private function render_form_page( string $action ): void {
 		$id    = isset( $_GET['id'] ) ? absint( $_GET['id'] ) : 0;
 		$rule  = $id > 0 ? VTAIL_Rules_DB::get_rule_by_id( $id ) : null;
-		$error = $this->handle_rule_save();
+		$error = $this->form_error;
 
 		if ( null !== $error ) {
 			$rule = $this->extract_rule_post_values();
@@ -341,26 +387,6 @@ class VTAIL_Admin {
 		echo '<h1>' . esc_html( $title ) . '</h1>';
 		$this->render_rule_form( $id, $values, $error );
 		echo '</div>';
-	}
-
-	private function handle_rule_save(): ?string {
-		if ( 'POST' !== $_SERVER['REQUEST_METHOD'] ) {
-			return null;
-		}
-
-		check_admin_referer( 'vtail_save_rule' );
-
-		$url = esc_url_raw( wp_unslash( $_POST['url'] ?? '' ) );
-		if ( '' === $url ) {
-			return __( 'URL is required.', 'vt-auto-internal-linker' );
-		}
-
-		$id   = isset( $_POST['id'] ) ? absint( $_POST['id'] ) : 0;
-		$data = $this->extract_rule_post_values();
-		$id > 0 ? VTAIL_Rules_DB::update_rule( $id, $data ) : $id = (int) VTAIL_Rules_DB::insert_rule( $data );
-
-		wp_safe_redirect( add_query_arg( [ 'page' => 'vtail-rules', 'action' => 'edit', 'id' => $id, 'saved' => '1' ], admin_url( 'options-general.php' ) ) );
-		exit;
 	}
 
 	private function render_rule_form( int $id, array $values, ?string $error ): void {
