@@ -118,4 +118,58 @@ jQuery( function ( $ ) {
 	function scrollToForm() {
 		$( 'html, body' ).animate( { scrollTop: $form.offset().top - 60 }, 300 );
 	}
+
+	// --- Scan stats ---
+	$( '#vtail-run-scan' ).on( 'click', function () {
+		var $btn        = $( this );
+		var reloadAfter = $btn.data( 'reload' ) === true;
+		var $progress   = $( '#vtail-scan-progress' );
+		var $status     = $( '#vtail-scan-status' );
+		var $fill       = $( '#vtail-progress-fill' );
+
+		$btn.prop( 'disabled', true );
+		$fill.css( 'width', '0%' );
+		$status.text( vtailAdmin.i18n.scanStarting );
+		$progress.show();
+
+		function runBatch( batch, totalPosts ) {
+			$.post(
+				vtailAdmin.ajaxUrl,
+				{ action: 'vtail_scan_stats', nonce: vtailAdmin.nonce, batch: batch },
+				function ( resp ) {
+					if ( ! resp.success ) {
+						$btn.prop( 'disabled', false );
+						$status.text( vtailAdmin.i18n.error );
+						return;
+					}
+					var d     = resp.data;
+					var total = totalPosts || d.total_posts || 0;
+					var pct   = total > 0 ? Math.round( ( d.scanned / total ) * 100 ) : 100;
+
+					$fill.css( 'width', pct + '%' );
+					$status.text(
+						vtailAdmin.i18n.scanProgress
+							.replace( '%1', d.scanned )
+							.replace( '%2', total )
+					);
+
+					if ( d.done ) {
+						$fill.css( 'width', '100%' );
+						$status.text( vtailAdmin.i18n.scanDone.replace( '%', total ) );
+						$btn.prop( 'disabled', false );
+						if ( reloadAfter ) {
+							setTimeout( function () { location.reload(); }, 1000 );
+						}
+					} else {
+						runBatch( batch + 1, total );
+					}
+				}
+			).fail( function () {
+				$btn.prop( 'disabled', false );
+				$status.text( vtailAdmin.i18n.error );
+			} );
+		}
+
+		runBatch( 0, 0 );
+	} );
 } );

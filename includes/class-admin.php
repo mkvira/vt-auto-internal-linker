@@ -177,6 +177,44 @@ class VTAIL_Admin {
 		wp_send_json_success( [ 'keyword_id' => $saved_id, 'html' => $html ] );
 	}
 
+	public function handle_scan_stats(): void {
+		check_ajax_referer( 'vtail_keyword_nonce', 'nonce' );
+
+		if ( ! current_user_can( 'manage_options' ) ) {
+			wp_send_json_error( [ 'message' => __( 'Permission denied.', 'vt-auto-internal-linker' ) ] );
+		}
+
+		$batch    = absint( $_POST['batch'] ?? 0 );
+		$keywords = $this->get_all_active_keywords();
+
+		if ( empty( $keywords ) ) {
+			wp_send_json_success( [ 'done' => true, 'total_posts' => 0, 'scanned' => 0 ] );
+		}
+
+		if ( 0 === $batch ) {
+			VTAIL_Rules_DB::update_stats( [] );
+		}
+
+		$query = $this->run_posts_batch( $batch );
+		$stats = VTAIL_Rules_DB::get_stats();
+
+		foreach ( $query->posts as $post ) {
+			$this->scan_post_for_keywords( $post, $keywords, $stats );
+		}
+
+		VTAIL_Rules_DB::update_stats( $stats );
+
+		$total_posts = (int) $query->found_posts;
+		$scanned     = min( ( $batch + 1 ) * 15, $total_posts );
+
+		wp_send_json_success( [
+			'batch'       => $batch,
+			'total_posts' => $total_posts,
+			'scanned'     => $scanned,
+			'done'        => $scanned >= $total_posts,
+		] );
+	}
+
 	public function handle_delete_keyword(): void {
 		check_ajax_referer( 'vtail_keyword_nonce', 'nonce' );
 
@@ -210,6 +248,7 @@ class VTAIL_Admin {
 		echo '<a href="' . esc_url( $add_url ) . '" class="page-title-action">' . esc_html__( 'Add New Rule', 'vt-auto-internal-linker' ) . '</a>';
 		echo '<hr class="wp-header-end">';
 		$this->show_notice();
+		$this->render_scan_button();
 		echo '<form method="get"><input type="hidden" name="page" value="vtail-rules" />';
 		$table->display();
 		echo '</form>';
@@ -591,8 +630,7 @@ class VTAIL_Admin {
 		echo '</tbody></table>';
 
 		$this->render_stats_posts_table( $kw_stats['posts'] ?? [] );
-
-		echo '<p class="description">' . esc_html__( 'Stats are updated manually. Use the "Update Stats" button on the rules page.', 'vt-auto-internal-linker' ) . '</p>';
+		$this->render_scan_button( true );
 		echo '</div>';
 	}
 
@@ -631,6 +669,91 @@ class VTAIL_Admin {
 	// -------------------------------------------------------------------------
 	// Private helpers
 	// -------------------------------------------------------------------------
+
+	/**
+	 * Renders the "Update Stats" button and progress UI.
+	 * Pass $reload_on_done=true on pages that should refresh after scan completes.
+	 */
+	private function render_scan_button( bool $reload_on_done = false ): void {
+		$reload_attr = $reload_on_done ? ' data-reload="true"' : '';
+		echo '<div id="vtail-scan-wrap" class="vtail-scan-wrap">';
+		echo '<button type="button" id="vtail-run-scan" class="button"' . $reload_attr . '>';
+		echo esc_html__( 'Update Link Stats', 'vt-auto-internal-linker' );
+		echo '</button>';
+		echo '<span id="vtail-scan-progress" style="display:none;">';
+		echo ' <span id="vtail-scan-status"></span>';
+		echo '<div class="vtail-progress-bar"><div id="vtail-progress-fill" style="width:0%"></div></div>';
+		echo '</span>';
+		echo '</div>';
+	}
+
+	/**
+	 * Returns a flat list of all active keywords across all active rules.
+	 *
+	 * @return array<int, array<string, mixed>>
+	 */
+	private function get_all_active_keywords(): array {
+		$keywords = [];
+		foreach ( VTAIL_Rules_DB::get_active_rules_with_keywords() as $rule ) {
+			foreach ( $rule['keywords'] as $kw ) {
+				$keywords[] = $kw;
+			}
+		}
+		return $keywords;
+	}
+
+	/**
+	 * Runs a WP_Query for a batch of 15 published posts across all public post types.
+	 */
+	private function run_posts_batch( int $batch ): \WP_Query {
+		return new \WP_Query( [
+			'post_type'              => array_values( get_post_types( [ 'public' => true ] ) ),
+			'post_status'            => 'publish',
+			'posts_per_page'         => 15,
+			'offset'                 => $batch * 15,
+			'no_found_rows'          => false,
+			'update_post_meta_cache' => false,
+			'update_post_term_cache' => false,
+		] );
+	}
+
+	/**
+	 * Checks a single post's content against all keywords and updates $stats in-place.
+	 *
+	 * @param array<int, array<string, mixed>> $keywords
+	 * @param array<string, array<string, mixed>> $stats
+	 */
+	private function scan_post_for_keywords( \WP_Post $post, array $keywords, array &$stats ): void {
+		$content = $post->post_content;
+		if ( '' === trim( $content ) ) {
+			return;
+		}
+
+		foreach ( $keywords as $kw ) {
+			$pattern = $this->build_scan_pattern( (string) $kw['keyword'], (bool) $kw['case_sensitive'] );
+			if ( ! preg_match( $pattern, $content ) ) {
+				continue;
+			}
+
+			$key = (string) $kw['id'];
+			if ( ! isset( $stats[ $key ] ) ) {
+				$stats[ $key ] = [ 'count' => 0, 'posts' => [] ];
+			}
+			if ( ! in_array( $post->ID, $stats[ $key ]['posts'], true ) ) {
+				$stats[ $key ]['posts'][] = $post->ID;
+				++$stats[ $key ]['count'];
+			}
+		}
+	}
+
+	/**
+	 * Builds a regex pattern for content scanning — same word-boundary logic as the linker.
+	 */
+	private function build_scan_pattern( string $keyword, bool $case_sensitive ): string {
+		$escaped = preg_quote( $keyword, '/' );
+		$flags   = $case_sensitive ? 'u' : 'ui';
+		return '/(?<!\w)' . $escaped . '(?!\w)/' . $flags;
+	}
 
 	/**
 	 * @return array<string, mixed>
