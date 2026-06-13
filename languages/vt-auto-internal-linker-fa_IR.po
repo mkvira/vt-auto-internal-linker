@@ -304,7 +304,7 @@ msgid "An error occurred. Please try again."
 msgstr "خطایی رخ داد. لطفاً دوباره تلاش کنید."
 
 #: includes/class-plugin.php:46
-msgid "Starting scan\xe2\x80\xa6"
+msgid "Starting scan…"
 msgstr "شروع اسکن..."
 
 #: includes/class-plugin.php:47
@@ -312,5 +312,5 @@ msgid "Scanning: %1 / %2 posts"
 msgstr "در حال اسکن: %1 از %2 نوشته"
 
 #: includes/class-plugin.php:48
-msgid "Done \xe2\x80\x94 % posts scanned."
+msgid "Done — % posts scanned."
 msgstr "اتمام — % نوشته اسکن شد."
