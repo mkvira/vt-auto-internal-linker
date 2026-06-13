@@ -44,7 +44,7 @@ class VTAIL_Plugin {
 						'error'         => __( 'An error occurred. Please try again.', 'vt-auto-internal-linker' ),
 						'scanStarting'  => __( 'Starting scan…', 'vt-auto-internal-linker' ),
 						'scanProgress'  => __( 'Scanning: %1 / %2 posts', 'vt-auto-internal-linker' ),
-						'scanDone'      => __( 'Done — %  posts scanned.', 'vt-auto-internal-linker' ),
+						'scanDone'      => __( 'Done — % posts scanned.', 'vt-auto-internal-linker' ),
 					],
 				] );
 			} );
