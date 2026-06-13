@@ -23,9 +23,11 @@ class VTAIL_Rules_DB {
 		$table_name      = $wpdb->prefix . 'vtail_rules';
 		$charset_collate = $wpdb->get_charset_collate();
 
+		// Legacy columns (keyword, case_sensitive, nofollow, new_tab, priority) are kept
+		// intentionally — dbDelta cannot drop columns. They are ignored in all queries.
 		$sql = "CREATE TABLE {$table_name} (
   id INT NOT NULL AUTO_INCREMENT,
-  keyword VARCHAR(255) NOT NULL,
+  keyword VARCHAR(255) NOT NULL DEFAULT '',
   url VARCHAR(2083) NOT NULL,
   case_sensitive TINYINT(1) NOT NULL DEFAULT 0,
   max_per_post INT NOT NULL DEFAULT 1,
@@ -39,6 +41,107 @@ class VTAIL_Rules_DB {
 
 		require_once ABSPATH . 'wp-admin/includes/upgrade.php';
 		dbDelta( $sql );
+
+		self::create_keywords_table();
+	}
+
+	/**
+	 * Creates the vtail_keywords table using dbDelta.
+	 */
+	public static function create_keywords_table(): void {
+		global $wpdb;
+
+		$table_name      = $wpdb->prefix . 'vtail_keywords';
+		$charset_collate = $wpdb->get_charset_collate();
+
+		$sql = "CREATE TABLE {$table_name} (
+  id INT NOT NULL AUTO_INCREMENT,
+  rule_id INT NOT NULL,
+  keyword VARCHAR(255) NOT NULL,
+  max_per_post INT NOT NULL DEFAULT 1,
+  priority INT NOT NULL DEFAULT 10,
+  total_limit INT NOT NULL DEFAULT 0,
+  case_sensitive TINYINT(1) NOT NULL DEFAULT 0,
+  nofollow TINYINT(1) NOT NULL DEFAULT 0,
+  new_tab TINYINT(1) NOT NULL DEFAULT 0,
+  anchor VARCHAR(255) NOT NULL DEFAULT '',
+  active TINYINT(1) NOT NULL DEFAULT 1,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY  (id),
+  KEY rule_id (rule_id)
+) {$charset_collate};";
+
+		require_once ABSPATH . 'wp-admin/includes/upgrade.php';
+		dbDelta( $sql );
+	}
+
+	/**
+	 * Runs on plugins_loaded. Upgrades the DB schema when VTAIL_DB_VERSION increases.
+	 */
+	public static function maybe_upgrade(): void {
+		$installed = (int) get_option( 'vtail_db_version', 1 );
+
+		if ( $installed >= VTAIL_DB_VERSION ) {
+			return;
+		}
+
+		if ( $installed < 2 ) {
+			self::upgrade_to_v2();
+		}
+
+		update_option( 'vtail_db_version', VTAIL_DB_VERSION, false );
+	}
+
+	/**
+	 * v1 → v2: create vtail_keywords and migrate existing rules.
+	 */
+	private static function upgrade_to_v2(): void {
+		global $wpdb;
+
+		self::create_keywords_table();
+
+		$rules = $wpdb->get_results(
+			"SELECT id, keyword, case_sensitive, max_per_post, nofollow, new_tab, priority
+			 FROM {$wpdb->prefix}vtail_rules
+			 WHERE keyword != ''",
+			ARRAY_A
+		);
+
+		if ( empty( $rules ) ) {
+			return;
+		}
+
+		$keywords_table = $wpdb->prefix . 'vtail_keywords';
+
+		foreach ( $rules as $rule ) {
+			$already_migrated = $wpdb->get_var(
+				$wpdb->prepare(
+					"SELECT COUNT(*) FROM {$keywords_table} WHERE rule_id = %d",
+					$rule['id']
+				)
+			);
+
+			if ( $already_migrated > 0 ) {
+				continue;
+			}
+
+			$wpdb->insert(
+				$keywords_table,
+				[
+					'rule_id'        => (int) $rule['id'],
+					'keyword'        => $rule['keyword'],
+					'max_per_post'   => (int) $rule['max_per_post'],
+					'priority'       => (int) $rule['priority'],
+					'total_limit'    => 0,
+					'case_sensitive' => (int) $rule['case_sensitive'],
+					'nofollow'       => (int) $rule['nofollow'],
+					'new_tab'        => (int) $rule['new_tab'],
+					'anchor'         => '',
+					'active'         => 1,
+				],
+				[ '%d', '%s', '%d', '%d', '%d', '%d', '%d', '%d', '%s', '%d' ]
+			);
+		}
 	}
 
 	/**
