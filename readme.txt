@@ -3,7 +3,7 @@ Contributors: mkvira
 Tags: internal links, seo, auto linking, links, keywords
 Requires at least: 5.5
 Tested up to: 6.7
-Stable tag: 1.0.0
+Stable tag: 1.1.0
 Requires PHP: 7.4
 License: GPL-2.0-or-later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
@@ -16,12 +16,14 @@ VT Auto Internal Linker scans your posts and pages on render and automatically w
 
 **Features:**
 
-* Define keyword → URL rules from a simple admin screen
-* Per-rule controls: case sensitivity, maximum occurrences per post, nofollow, open in new tab
+* Define URL rules, each with multiple keywords managed from a single screen
+* Per-keyword controls: priority, max occurrences per post, site-wide link limit, anchor section (#), case sensitivity, nofollow, open in new tab
+* Rule-level cap: limit total links to a URL per post across all its keywords
 * Rules are applied at render time via the `the_content` filter — your database content is never modified
 * Skips replacement inside existing `<a>`, `<code>`, and `<pre>` tags to avoid double-linking
+* Link stats: manual on-demand scan shows which posts contain each keyword link
 * Compatible with WordPress Multisite
-* Fully internationalised (`.pot` file included)
+* Fully internationalised (`.pot` file included, Persian translation bundled)
 
 == Installation ==
 
@@ -46,6 +48,17 @@ Yes, as long as the page builder or block editor outputs content through the sta
 
 == Changelog ==
 
+= 1.1.0 =
+* Multi-keyword rules: each URL rule now supports multiple keywords with individual settings.
+* Per-keyword controls: priority, max per post, site-wide total limit, anchor (#section), case sensitivity, nofollow, open in new tab.
+* Inline AJAX keyword editor on the rule edit screen — add, edit, and delete keywords without leaving the page.
+* Link stats: manual scan button checks all published posts and shows where each keyword is linked.
+* Stats detail page lists every post containing a given keyword link with direct edit access.
+* DB migration to schema v2 with `vtail_keywords` table; existing rules migrated automatically on update.
+* Linker rewritten: single JOIN query (static-cached per request), `is_singular()` bail-early, self-link check now strips `#anchor` before comparing URLs.
+* i18n: 73 translatable strings (up from 24); Persian (fa_IR) translation updated.
+* Fixed: Global Settings strings (Exclude Tags, Save Settings) were missing from the .pot file in v1.0.0.
+
 = 1.0.0 =
 * Initial release.
 * Keyword-to-URL auto-linking via the `the_content` filter — database content is never modified.
@@ -56,6 +69,9 @@ Yes, as long as the page builder or block editor outputs content through the sta
 * Fully internationalised with `.pot` file included.
 
 == Upgrade Notice ==
+
+= 1.1.0 =
+Database schema upgraded automatically on activation. Existing rules are migrated to the new multi-keyword structure — no manual action required.
 
 = 1.0.0 =
 Initial release.
