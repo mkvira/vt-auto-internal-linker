@@ -722,7 +722,8 @@ class VTAIL_Admin {
 		$keywords = [];
 		foreach ( VTAIL_Rules_DB::get_active_rules_with_keywords() as $rule ) {
 			foreach ( $rule['keywords'] as $kw ) {
-				$keywords[] = $kw;
+				$kw['rule_url'] = $rule['url'];
+				$keywords[]     = $kw;
 			}
 		}
 		return $keywords;
@@ -755,7 +756,14 @@ class VTAIL_Admin {
 			return;
 		}
 
+		$permalink = (string) get_permalink( $post );
+
 		foreach ( $keywords as $kw ) {
+			// Mirror the linker's self-link prevention: skip if post IS the target URL.
+			if ( $this->is_target_page( (string) ( $kw['rule_url'] ?? '' ), $permalink ) ) {
+				continue;
+			}
+
 			$pattern = $this->build_scan_pattern( (string) $kw['keyword'], (bool) $kw['case_sensitive'] );
 			if ( ! preg_match( $pattern, $content ) ) {
 				continue;
@@ -770,6 +778,18 @@ class VTAIL_Admin {
 				++$stats[ $key ]['count'];
 			}
 		}
+	}
+
+	/**
+	 * Returns true when $rule_url and $post_permalink point to the same page.
+	 * Strips #anchor before comparing, matching the linker's is_self_link() logic.
+	 */
+	private function is_target_page( string $rule_url, string $post_permalink ): bool {
+		if ( '' === $rule_url || '' === $post_permalink ) {
+			return false;
+		}
+		$bare = (string) strtok( $rule_url, '#' );
+		return untrailingslashit( $bare ) === untrailingslashit( $post_permalink );
 	}
 
 	/**
