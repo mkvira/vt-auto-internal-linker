@@ -33,6 +33,7 @@ class VTAIL_Rules_DB {
   id INT NOT NULL AUTO_INCREMENT,
   keyword VARCHAR(255) NOT NULL DEFAULT '',
   url VARCHAR(2083) NOT NULL,
+  title VARCHAR(255) NOT NULL DEFAULT '',
   case_sensitive TINYINT(1) NOT NULL DEFAULT 0,
   max_per_post INT NOT NULL DEFAULT 1,
   nofollow TINYINT(1) NOT NULL DEFAULT 0,
@@ -97,6 +98,10 @@ class VTAIL_Rules_DB {
 			self::upgrade_to_v3();
 		}
 
+		if ( $installed < 4 ) {
+			self::upgrade_to_v4();
+		}
+
 		update_option( 'vtail_db_version', VTAIL_DB_VERSION, false );
 	}
 
@@ -153,6 +158,13 @@ class VTAIL_Rules_DB {
 	}
 
 	/**
+	 * v3 → v4: add title column to vtail_rules.
+	 */
+	private static function upgrade_to_v4(): void {
+		self::create_table();
+	}
+
+	/**
 	 * v2 → v3: fix anchor = '0' caused by a format-string ordering bug in v1.1.0.
 	 * get_keyword_formats() used $map key order instead of $data key order, so
 	 * VARCHAR anchor was formatted as %d, converting '' to 0 on every insert/update.
@@ -181,8 +193,9 @@ class VTAIL_Rules_DB {
 		$keywords_table = $wpdb->prefix . 'vtail_keywords';
 
 		return $wpdb->get_results(
-			"SELECT r.id, r.url, r.max_per_post, r.active, r.created_at,
-			        COUNT(k.id) AS keyword_count
+			"SELECT r.id, r.title, r.url, r.max_per_post, r.active, r.created_at,
+			        GROUP_CONCAT(k.id ORDER BY k.priority ASC, k.id ASC SEPARATOR ',') AS keyword_ids,
+			        GROUP_CONCAT(k.keyword ORDER BY k.priority ASC, k.id ASC SEPARATOR '|||') AS keyword_texts
 			 FROM {$rules_table} r
 			 LEFT JOIN {$keywords_table} k ON k.rule_id = r.id
 			 GROUP BY r.id
@@ -201,7 +214,7 @@ class VTAIL_Rules_DB {
 
 		$row = $wpdb->get_row(
 			$wpdb->prepare(
-				"SELECT id, url, max_per_post, active
+				"SELECT id, title, url, max_per_post, active
 				 FROM {$wpdb->prefix}vtail_rules
 				 WHERE id = %d",
 				$id
@@ -575,6 +588,9 @@ class VTAIL_Rules_DB {
 	private static function sanitize_rule_fields( array $data ): array {
 		$sanitized = [];
 
+		if ( isset( $data['title'] ) ) {
+			$sanitized['title'] = sanitize_text_field( $data['title'] );
+		}
 		if ( isset( $data['url'] ) ) {
 			$sanitized['url'] = esc_url_raw( $data['url'] );
 		}
@@ -632,7 +648,7 @@ class VTAIL_Rules_DB {
 	 * @return list<string>
 	 */
 	private static function get_rule_formats( array $data ): array {
-		$map     = [ 'url' => '%s', 'max_per_post' => '%d', 'active' => '%d' ];
+		$map     = [ 'title' => '%s', 'url' => '%s', 'max_per_post' => '%d', 'active' => '%d' ];
 		$formats = [];
 		foreach ( array_keys( $data ) as $key ) {
 			if ( isset( $map[ $key ] ) ) {

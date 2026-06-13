@@ -23,7 +23,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 define( 'VTAIL_VERSION', '1.1.0' );
-define( 'VTAIL_DB_VERSION', 3 );
+define( 'VTAIL_DB_VERSION', 4 );
 define( 'VTAIL_PATH', plugin_dir_path( __FILE__ ) );
 define( 'VTAIL_URL', plugin_dir_url( __FILE__ ) );
 

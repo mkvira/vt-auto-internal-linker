@@ -9,6 +9,14 @@
 /* ── Rules list table ────────────────────────────────────────────────── */
 
 /* Keep narrow columns from over-expanding */
+.settings_page_vtail-rules .column-id {
+	width: 50px;
+}
+
+.settings_page_vtail-rules .column-title {
+	width: 18%;
+}
+
 .settings_page_vtail-rules .column-max_per_post {
 	width: 90px;
 }
@@ -19,6 +27,8 @@
 
 .settings_page_vtail-rules .column-url {
 	width: 30%;
+	direction: ltr;
+	text-align: left;
 }
 
 /* Prevent long URLs from stretching or wrapping in their column */
@@ -29,6 +39,8 @@
 	text-overflow: ellipsis;
 	white-space: nowrap;
 	vertical-align: bottom;
+	direction: ltr;
+	unicode-bidi: embed;
 }
 
 /* ── Add / Edit form ─────────────────────────────────────────────────── */
@@ -45,6 +57,12 @@
 }
 
 /* ── Keywords table ──────────────────────────────────────────────────── */
+
+/* Stat count badge inside the Keywords column of the rules list */
+.settings_page_vtail-rules .vtail-kw-stat {
+	color: #666;
+	font-size: 12px;
+}
 
 .settings_page_vtail-rules .vtail-keywords-table th,
 .settings_page_vtail-rules .vtail-keywords-table td {

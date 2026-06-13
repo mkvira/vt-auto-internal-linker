@@ -21,6 +21,9 @@ if ( ! class_exists( 'WP_List_Table' ) ) {
 
 class VTAIL_Rules_List_Table extends WP_List_Table {
 
+	/** @var array<string, array<string, mixed>> Cached stats for the current render. */
+	private array $stats = [];
+
 	public function __construct() {
 		parent::__construct( [
 			'singular' => 'rule',
@@ -31,8 +34,10 @@ class VTAIL_Rules_List_Table extends WP_List_Table {
 
 	public function get_columns(): array {
 		return [
-			'url'           => esc_html__( 'Target URL', 'vt-auto-internal-linker' ),
-			'keyword_count' => esc_html__( 'Keywords', 'vt-auto-internal-linker' ),
+			'id'       => esc_html__( 'ID', 'vt-auto-internal-linker' ),
+			'title'    => esc_html__( 'Title', 'vt-auto-internal-linker' ),
+			'url'      => esc_html__( 'Target URL', 'vt-auto-internal-linker' ),
+			'keywords' => esc_html__( 'Keywords', 'vt-auto-internal-linker' ),
 			'max_per_post'  => esc_html__( 'Max / Post', 'vt-auto-internal-linker' ),
 			'active'        => esc_html__( 'Active', 'vt-auto-internal-linker' ),
 		];
@@ -44,6 +49,7 @@ class VTAIL_Rules_List_Table extends WP_List_Table {
 
 	public function prepare_items(): void {
 		$this->_column_headers = [ $this->get_columns(), [], $this->get_sortable_columns() ];
+		$this->stats           = VTAIL_Rules_DB::get_stats();
 
 		$per_page     = 20;
 		$current_page = $this->get_pagenum();
@@ -87,8 +93,26 @@ class VTAIL_Rules_List_Table extends WP_List_Table {
 	/**
 	 * @param array<string, mixed> $item
 	 */
-	public function column_keyword_count( array $item ): string {
-		return esc_html( (string) ( $item['keyword_count'] ?? 0 ) );
+	public function column_keywords( array $item ): string {
+		$ids_str   = (string) ( $item['keyword_ids'] ?? '' );
+		$texts_str = (string) ( $item['keyword_texts'] ?? '' );
+
+		if ( '' === $ids_str ) {
+			return '—';
+		}
+
+		$ids   = explode( ',', $ids_str );
+		$texts = explode( '|||', $texts_str );
+		$lines = [];
+
+		foreach ( $ids as $index => $id ) {
+			$kw_id  = absint( $id );
+			$text   = $texts[ $index ] ?? '';
+			$count  = (int) ( $this->stats[ (string) $kw_id ]['count'] ?? 0 );
+			$lines[] = esc_html( $text ) . ' <span class="vtail-kw-stat">(' . esc_html( (string) $count ) . ')</span>';
+		}
+
+		return implode( '<br />', $lines );
 	}
 
 	/**
@@ -378,7 +402,7 @@ class VTAIL_Admin {
 			$rule = $this->extract_rule_post_values();
 		}
 
-		$defaults = [ 'url' => '', 'max_per_post' => 1, 'active' => 1 ];
+		$defaults = [ 'title' => '', 'url' => '', 'max_per_post' => 1, 'active' => 1 ];
 		$values   = $rule ?? $defaults;
 		$title    = 'edit' === $action
 			? __( 'Edit Rule', 'vt-auto-internal-linker' )
@@ -419,9 +443,16 @@ class VTAIL_Admin {
 	private function render_rule_fields( array $values ): void {
 		?>
 		<tr>
+			<th scope="row"><label for="title"><?php esc_html_e( 'Title', 'vt-auto-internal-linker' ); ?></label></th>
+			<td>
+				<input type="text" id="title" name="title" value="<?php echo esc_attr( (string) ( $values['title'] ?? '' ) ); ?>" class="regular-text" />
+				<p class="description"><?php esc_html_e( 'Optional. A label to identify this rule in the list.', 'vt-auto-internal-linker' ); ?></p>
+			</td>
+		</tr>
+		<tr>
 			<th scope="row"><label for="url"><?php esc_html_e( 'Target URL', 'vt-auto-internal-linker' ); ?></label></th>
 			<td>
-				<input type="url" id="url" name="url" value="<?php echo esc_attr( (string) $values['url'] ); ?>" class="regular-text" required />
+				<input type="url" id="url" name="url" value="<?php echo esc_attr( (string) $values['url'] ); ?>" class="regular-text" dir="ltr" required />
 				<p class="description"><?php esc_html_e( 'Full URL including https://', 'vt-auto-internal-linker' ); ?></p>
 			</td>
 		</tr>
@@ -829,6 +860,7 @@ class VTAIL_Admin {
 	 */
 	private function extract_rule_post_values(): array {
 		return [
+			'title'        => sanitize_text_field( wp_unslash( $_POST['title'] ?? '' ) ),
 			'url'          => esc_url_raw( wp_unslash( $_POST['url'] ?? '' ) ),
 			'max_per_post' => absint( $_POST['max_per_post'] ?? 1 ),
 			'active'       => absint( $_POST['active'] ?? 0 ),
