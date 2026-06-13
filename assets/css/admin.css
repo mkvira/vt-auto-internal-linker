@@ -83,22 +83,31 @@
 	margin-top: 0;
 }
 
-/* # prefix sits inline with the anchor text input */
+/* # prefix sits inline with the anchor text input.
+   dir="ltr" on .vtail-anchor-group keeps # always visually before the field
+   regardless of site direction (RTL/LTR). */
+.settings_page_vtail-rules .vtail-anchor-group {
+	display: inline-flex;
+	align-items: stretch;
+	direction: ltr;
+}
+
 .settings_page_vtail-rules .vtail-anchor-prefix {
-	display: inline-block;
-	padding: 4px 6px;
+	display: inline-flex;
+	align-items: center;
+	padding: 0 6px;
 	background: #f0f0f1;
 	border: 1px solid #8c8f94;
 	border-right: none;
 	border-radius: 3px 0 0 3px;
 	font-weight: 600;
-	vertical-align: middle;
-	line-height: 1.6;
+	line-height: 1;
+	white-space: nowrap;
 }
 
 .settings_page_vtail-rules #vtail-kw-anchor {
 	border-radius: 0 3px 3px 0;
-	vertical-align: middle;
+	margin: 0;
 }
 
 /* ── Stats scan button & progress ───────────────────────────────────── */

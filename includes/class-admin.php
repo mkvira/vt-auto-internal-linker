@@ -520,7 +520,7 @@ class VTAIL_Admin {
 					<tr>
 						<th><label for="vtail-kw-anchor"><?php esc_html_e( 'Anchor Section', 'vt-auto-internal-linker' ); ?></label></th>
 						<td>
-							<span class="vtail-anchor-prefix">#</span><input type="text" id="vtail-kw-anchor" name="anchor" class="regular-text" placeholder="<?php esc_attr_e( 'e.g. about', 'vt-auto-internal-linker' ); ?>" />
+							<span class="vtail-anchor-group" dir="ltr"><span class="vtail-anchor-prefix">#</span><input type="text" id="vtail-kw-anchor" name="anchor" class="regular-text" placeholder="<?php esc_attr_e( 'e.g. about', 'vt-auto-internal-linker' ); ?>" /></span>
 							<p class="description"><?php esc_html_e( 'Optional. Links to a specific section of the target page (e.g. "about" → URL#about).', 'vt-auto-internal-linker' ); ?></p>
 						</td>
 					</tr>

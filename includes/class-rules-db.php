@@ -93,6 +93,10 @@ class VTAIL_Rules_DB {
 			self::upgrade_to_v2();
 		}
 
+		if ( $installed < 3 ) {
+			self::upgrade_to_v3();
+		}
+
 		update_option( 'vtail_db_version', VTAIL_DB_VERSION, false );
 	}
 
@@ -146,6 +150,19 @@ class VTAIL_Rules_DB {
 				[ '%d', '%s', '%d', '%d', '%d', '%d', '%d', '%d', '%s', '%d' ]
 			);
 		}
+	}
+
+	/**
+	 * v2 → v3: fix anchor = '0' caused by a format-string ordering bug in v1.1.0.
+	 * get_keyword_formats() used $map key order instead of $data key order, so
+	 * VARCHAR anchor was formatted as %d, converting '' to 0 on every insert/update.
+	 */
+	private static function upgrade_to_v3(): void {
+		global $wpdb;
+
+		$wpdb->query(
+			"UPDATE {$wpdb->prefix}vtail_keywords SET anchor = '' WHERE anchor = '0'"
+		);
 	}
 
 	// -------------------------------------------------------------------------
@@ -608,11 +625,21 @@ class VTAIL_Rules_DB {
 	}
 
 	/**
+	 * Returns formats in the same key order as $data, not $map.
+	 * array_intersect_key preserves $map order which can diverge from $data order;
+	 * $wpdb->insert() consumes formats positionally, so order must match $data.
+	 *
 	 * @return list<string>
 	 */
 	private static function get_rule_formats( array $data ): array {
-		$map = [ 'url' => '%s', 'max_per_post' => '%d', 'active' => '%d' ];
-		return array_values( array_intersect_key( $map, $data ) );
+		$map     = [ 'url' => '%s', 'max_per_post' => '%d', 'active' => '%d' ];
+		$formats = [];
+		foreach ( array_keys( $data ) as $key ) {
+			if ( isset( $map[ $key ] ) ) {
+				$formats[] = $map[ $key ];
+			}
+		}
+		return $formats;
 	}
 
 	/**
@@ -631,7 +658,13 @@ class VTAIL_Rules_DB {
 			'anchor'         => '%s',
 			'active'         => '%d',
 		];
-		return array_values( array_intersect_key( $map, $data ) );
+		$formats = [];
+		foreach ( array_keys( $data ) as $key ) {
+			if ( isset( $map[ $key ] ) ) {
+				$formats[] = $map[ $key ];
+			}
+		}
+		return $formats;
 	}
 
 	// Legacy private helpers — used by deprecated public methods above.
