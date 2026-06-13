@@ -325,9 +325,10 @@ class VTAIL_Admin {
 		echo '<div class="wrap">';
 		echo '<h1 class="wp-heading-inline">' . esc_html( get_admin_page_title() ) . '</h1>';
 		echo '<a href="' . esc_url( $add_url ) . '" class="page-title-action">' . esc_html__( 'Add New Rule', 'vt-auto-internal-linker' ) . '</a>';
+		$this->render_scan_trigger( 'page-title-action' );
 		echo '<hr class="wp-header-end">';
 		$this->show_notice();
-		$this->render_scan_button();
+		$this->render_scan_progress();
 		echo '<form method="get"><input type="hidden" name="page" value="vtail-rules" />';
 		$table->display();
 		echo '</form>';
@@ -477,7 +478,9 @@ class VTAIL_Admin {
 			<button type="button" id="vtail-add-keyword" class="button">
 				<?php esc_html_e( '+ Add Keyword', 'vt-auto-internal-linker' ); ?>
 			</button>
+			<?php $this->render_scan_trigger( 'button' ); ?>
 		</p>
+		<?php $this->render_scan_progress(); ?>
 
 		<?php $this->render_keyword_inline_form( $rule_id ); ?>
 		<?php
@@ -697,15 +700,35 @@ class VTAIL_Admin {
 	// -------------------------------------------------------------------------
 
 	/**
-	 * Renders the "Update Stats" button and progress UI.
-	 * Pass $reload_on_done=true on pages that should refresh after scan completes.
+	 * Renders the scan trigger button only.
+	 * $css_class: 'page-title-action' for header placement, 'button' for inline placement.
 	 */
-	private function render_scan_button( bool $reload_on_done = false ): void {
+	private function render_scan_trigger( string $css_class = 'button', bool $reload_on_done = false ): void {
 		$reload_attr = $reload_on_done ? ' data-reload="true"' : '';
-		echo '<div id="vtail-scan-wrap" class="vtail-scan-wrap">';
-		echo '<button type="button" id="vtail-run-scan" class="button"' . $reload_attr . '>';
+		echo '<button type="button" id="vtail-run-scan" class="' . esc_attr( $css_class ) . '"' . $reload_attr . '>';
 		echo esc_html__( 'Update Link Stats', 'vt-auto-internal-linker' );
 		echo '</button>';
+	}
+
+	/**
+	 * Renders the scan progress area (status text + bar). Always placed below the trigger.
+	 */
+	private function render_scan_progress(): void {
+		echo '<div id="vtail-scan-wrap" class="vtail-scan-wrap">';
+		echo '<span id="vtail-scan-progress" style="display:none;">';
+		echo '<span id="vtail-scan-status"></span>';
+		echo '<div class="vtail-progress-bar"><div id="vtail-progress-fill" style="width:0%"></div></div>';
+		echo '</span>';
+		echo '</div>';
+	}
+
+	/**
+	 * Renders trigger + progress together (used on the stats detail page).
+	 * Pass $reload_on_done=true to reload the page after scan completes.
+	 */
+	private function render_scan_button( bool $reload_on_done = false ): void {
+		echo '<div class="vtail-scan-wrap">';
+		$this->render_scan_trigger( 'button', $reload_on_done );
 		echo '<span id="vtail-scan-progress" style="display:none;">';
 		echo ' <span id="vtail-scan-status"></span>';
 		echo '<div class="vtail-progress-bar"><div id="vtail-progress-fill" style="width:0%"></div></div>';
