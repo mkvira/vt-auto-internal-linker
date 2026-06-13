@@ -43,3 +43,60 @@
 	margin-top: 6px;
 	margin-bottom: 16px;
 }
+
+/* ── Keywords table ──────────────────────────────────────────────────── */
+
+.settings_page_vtail-rules .vtail-keywords-table th,
+.settings_page_vtail-rules .vtail-keywords-table td {
+	padding: 8px 10px;
+	vertical-align: middle;
+}
+
+.settings_page_vtail-rules .vtail-keywords-table .column-keyword {
+	min-width: 140px;
+}
+
+/* ── Settings badges (Aa / NF / ↗) ──────────────────────────────────── */
+
+.settings_page_vtail-rules .vtail-badge {
+	display: inline-block;
+	padding: 1px 5px;
+	font-size: 11px;
+	font-weight: 600;
+	line-height: 1.6;
+	border-radius: 3px;
+	background: #e0e0e0;
+	color: #444;
+}
+
+/* ── Keyword inline form ─────────────────────────────────────────────── */
+
+.settings_page_vtail-rules .vtail-keyword-form-wrap {
+	margin-top: 16px;
+	padding: 16px 20px 20px;
+	background: #fff;
+	border: 1px solid #c3c4c7;
+	border-radius: 3px;
+}
+
+.settings_page_vtail-rules .vtail-keyword-form-wrap h3 {
+	margin-top: 0;
+}
+
+/* # prefix sits inline with the anchor text input */
+.settings_page_vtail-rules .vtail-anchor-prefix {
+	display: inline-block;
+	padding: 4px 6px;
+	background: #f0f0f1;
+	border: 1px solid #8c8f94;
+	border-right: none;
+	border-radius: 3px 0 0 3px;
+	font-weight: 600;
+	vertical-align: middle;
+	line-height: 1.6;
+}
+
+.settings_page_vtail-rules #vtail-kw-anchor {
+	border-radius: 0 3px 3px 0;
+	vertical-align: middle;
+}

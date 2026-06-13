@@ -257,6 +257,25 @@ class VTAIL_Rules_DB {
 	// -------------------------------------------------------------------------
 
 	/**
+	 * Returns a single keyword by ID, or null if not found.
+	 *
+	 * @return array<string, mixed>|null
+	 */
+	public static function get_keyword_by_id( int $id ): ?array {
+		global $wpdb;
+
+		$row = $wpdb->get_row(
+			$wpdb->prepare(
+				"SELECT * FROM {$wpdb->prefix}vtail_keywords WHERE id = %d",
+				$id
+			),
+			ARRAY_A
+		);
+
+		return $row ?? null;
+	}
+
+	/**
 	 * Returns all keywords for a rule, ordered by priority then insertion order.
 	 *
 	 * @return array<int, array<string, mixed>>

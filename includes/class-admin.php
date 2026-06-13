@@ -1,6 +1,6 @@
 <?php
 /**
- * Admin list table and page for managing keyword rules.
+ * Admin pages for managing keyword rules.
  *
  * @package VT_Auto_Internal_Linker
  */
@@ -16,7 +16,7 @@ if ( ! class_exists( 'WP_List_Table' ) ) {
 }
 
 // ---------------------------------------------------------------------------
-// List table
+// Rules list table
 // ---------------------------------------------------------------------------
 
 class VTAIL_Rules_List_Table extends WP_List_Table {
@@ -31,10 +31,10 @@ class VTAIL_Rules_List_Table extends WP_List_Table {
 
 	public function get_columns(): array {
 		return [
-			'keyword'      => esc_html__( 'Keyword', 'vt-auto-internal-linker' ),
-			'url'          => esc_html__( 'URL', 'vt-auto-internal-linker' ),
-			'max_per_post' => esc_html__( 'Max / Post', 'vt-auto-internal-linker' ),
-			'active'       => esc_html__( 'Active', 'vt-auto-internal-linker' ),
+			'url'           => esc_html__( 'Target URL', 'vt-auto-internal-linker' ),
+			'keyword_count' => esc_html__( 'Keywords', 'vt-auto-internal-linker' ),
+			'max_per_post'  => esc_html__( 'Max / Post', 'vt-auto-internal-linker' ),
+			'active'        => esc_html__( 'Active', 'vt-auto-internal-linker' ),
 		];
 	}
 
@@ -47,20 +47,14 @@ class VTAIL_Rules_List_Table extends WP_List_Table {
 
 		$per_page     = 20;
 		$current_page = $this->get_pagenum();
-		$all_rules    = VTAIL_Rules_DB::get_all();
+		$all_rules    = VTAIL_Rules_DB::get_all_rules();
 		$total_items  = count( $all_rules );
 
-		$this->set_pagination_args( [
-			'total_items' => $total_items,
-			'per_page'    => $per_page,
-		] );
-
+		$this->set_pagination_args( [ 'total_items' => $total_items, 'per_page' => $per_page ] );
 		$this->items = array_slice( $all_rules, ( $current_page - 1 ) * $per_page, $per_page );
 	}
 
 	/**
-	 * Fallback renderer for columns without a dedicated column_ method.
-	 *
 	 * @param array<string, mixed> $item
 	 */
 	public function column_default( $item, $column_name ): string {
@@ -68,11 +62,11 @@ class VTAIL_Rules_List_Table extends WP_List_Table {
 	}
 
 	/**
-	 * Keyword column — carries row actions (edit / delete).
+	 * URL column with row actions.
 	 *
 	 * @param array<string, mixed> $item
 	 */
-	public function column_keyword( array $item ): string {
+	public function column_url( array $item ): string {
 		$id         = absint( $item['id'] );
 		$base_url   = admin_url( 'options-general.php?page=vtail-rules' );
 		$edit_url   = add_query_arg( [ 'action' => 'edit', 'id' => $id ], $base_url );
@@ -82,41 +76,26 @@ class VTAIL_Rules_List_Table extends WP_List_Table {
 		);
 
 		$actions = [
-			'edit'   => sprintf(
-				'<a href="%s">%s</a>',
-				esc_url( $edit_url ),
-				esc_html__( 'Edit', 'vt-auto-internal-linker' )
-			),
-			'delete' => sprintf(
-				'<a href="%s">%s</a>',
-				esc_url( $delete_url ),
-				esc_html__( 'Delete', 'vt-auto-internal-linker' )
-			),
+			'edit'   => '<a href="' . esc_url( $edit_url ) . '">' . esc_html__( 'Edit', 'vt-auto-internal-linker' ) . '</a>',
+			'delete' => '<a href="' . esc_url( $delete_url ) . '" onclick="return confirm(\'' . esc_js( __( 'Delete this rule and all its keywords?', 'vt-auto-internal-linker' ) ) . '\')">' . esc_html__( 'Delete', 'vt-auto-internal-linker' ) . '</a>',
 		];
 
-		return esc_html( $item['keyword'] ) . $this->row_actions( $actions );
+		$link = '<a href="' . esc_url( (string) $item['url'] ) . '" target="_blank" rel="noopener noreferrer">' . esc_html( (string) $item['url'] ) . '</a>';
+		return $link . $this->row_actions( $actions );
 	}
 
 	/**
-	 * URL column — renders as a clickable link.
-	 *
 	 * @param array<string, mixed> $item
 	 */
-	public function column_url( array $item ): string {
-		return sprintf(
-			'<a href="%s" target="_blank" rel="noopener noreferrer">%s</a>',
-			esc_url( $item['url'] ),
-			esc_html( $item['url'] )
-		);
+	public function column_keyword_count( array $item ): string {
+		return esc_html( (string) ( $item['keyword_count'] ?? 0 ) );
 	}
 
 	/**
-	 * Active column — human-readable Yes / No.
-	 *
 	 * @param array<string, mixed> $item
 	 */
 	public function column_active( array $item ): string {
-		return $item['active']
+		return (int) $item['active']
 			? esc_html__( 'Yes', 'vt-auto-internal-linker' )
 			: esc_html__( 'No', 'vt-auto-internal-linker' );
 	}
@@ -145,6 +124,11 @@ class VTAIL_Admin {
 
 		$action = isset( $_GET['action'] ) ? sanitize_key( $_GET['action'] ) : '';
 
+		if ( 'stats' === $action ) {
+			$this->render_stats_page();
+			return;
+		}
+
 		if ( 'add' === $action || 'edit' === $action ) {
 			$this->render_form_page( $action );
 			return;
@@ -154,11 +138,67 @@ class VTAIL_Admin {
 	}
 
 	// -------------------------------------------------------------------------
+	// AJAX keyword handlers (public — registered via add_action in class-plugin.php)
+	// -------------------------------------------------------------------------
+
+	public function handle_save_keyword(): void {
+		check_ajax_referer( 'vtail_keyword_nonce', 'nonce' );
+
+		if ( ! current_user_can( 'manage_options' ) ) {
+			wp_send_json_error( [ 'message' => __( 'Permission denied.', 'vt-auto-internal-linker' ) ] );
+		}
+
+		$keyword_id = absint( $_POST['keyword_id'] ?? 0 );
+		$rule_id    = absint( $_POST['rule_id'] ?? 0 );
+
+		if ( ! $rule_id ) {
+			wp_send_json_error( [ 'message' => __( 'Invalid rule.', 'vt-auto-internal-linker' ) ] );
+		}
+
+		$data = $this->extract_keyword_post_values( $rule_id );
+
+		if ( '' === $data['keyword'] ) {
+			wp_send_json_error( [ 'message' => __( 'Keyword is required.', 'vt-auto-internal-linker' ) ] );
+		}
+
+		if ( $keyword_id > 0 ) {
+			VTAIL_Rules_DB::update_keyword( $keyword_id, $data );
+			$saved_id = $keyword_id;
+		} else {
+			$saved_id = VTAIL_Rules_DB::insert_keyword( $data );
+			if ( ! $saved_id ) {
+				wp_send_json_error( [ 'message' => __( 'Failed to save keyword.', 'vt-auto-internal-linker' ) ] );
+			}
+		}
+
+		$kw   = VTAIL_Rules_DB::get_keyword_by_id( $saved_id );
+		$html = $kw ? $this->build_keyword_row_html( $kw ) : '';
+
+		wp_send_json_success( [ 'keyword_id' => $saved_id, 'html' => $html ] );
+	}
+
+	public function handle_delete_keyword(): void {
+		check_ajax_referer( 'vtail_keyword_nonce', 'nonce' );
+
+		if ( ! current_user_can( 'manage_options' ) ) {
+			wp_send_json_error( [ 'message' => __( 'Permission denied.', 'vt-auto-internal-linker' ) ] );
+		}
+
+		$keyword_id = absint( $_POST['keyword_id'] ?? 0 );
+
+		if ( ! $keyword_id || ! VTAIL_Rules_DB::delete_keyword( $keyword_id ) ) {
+			wp_send_json_error( [ 'message' => __( 'Failed to delete keyword.', 'vt-auto-internal-linker' ) ] );
+		}
+
+		wp_send_json_success();
+	}
+
+	// -------------------------------------------------------------------------
 	// List view
 	// -------------------------------------------------------------------------
 
 	private function render_list_page(): void {
-		$this->handle_delete();
+		$this->handle_delete_rule();
 		$this->handle_settings_save();
 
 		$table   = new VTAIL_Rules_List_Table();
@@ -170,18 +210,15 @@ class VTAIL_Admin {
 		echo '<a href="' . esc_url( $add_url ) . '" class="page-title-action">' . esc_html__( 'Add New Rule', 'vt-auto-internal-linker' ) . '</a>';
 		echo '<hr class="wp-header-end">';
 		$this->show_notice();
-		echo '<form method="get">';
-		echo '<input type="hidden" name="page" value="vtail-rules" />';
+		echo '<form method="get"><input type="hidden" name="page" value="vtail-rules" />';
 		$table->display();
 		echo '</form>';
 		$this->render_settings_section();
 		echo '</div>';
 	}
 
-	private function handle_delete(): void {
-		$action = isset( $_GET['action'] ) ? sanitize_key( $_GET['action'] ) : '';
-
-		if ( 'delete' !== $action ) {
+	private function handle_delete_rule(): void {
+		if ( 'delete' !== ( isset( $_GET['action'] ) ? sanitize_key( $_GET['action'] ) : '' ) ) {
 			return;
 		}
 
@@ -192,7 +229,7 @@ class VTAIL_Admin {
 			wp_die( esc_html__( 'Security check failed.', 'vt-auto-internal-linker' ) );
 		}
 
-		VTAIL_Rules_DB::delete( $id );
+		VTAIL_Rules_DB::delete_rule( $id );
 
 		wp_safe_redirect( add_query_arg( [ 'page' => 'vtail-rules', 'deleted' => '1' ], admin_url( 'options-general.php' ) ) );
 		exit;
@@ -235,107 +272,59 @@ class VTAIL_Admin {
 		wp_nonce_field( 'vtail_save_settings', 'vtail_settings_nonce' );
 		echo '<table class="form-table"><tbody><tr>';
 		echo '<th scope="row"><label for="vtail_exclude_tags">' . esc_html__( 'Exclude Tags', 'vt-auto-internal-linker' ) . '</label></th>';
-		echo '<td>';
-		echo '<input type="text" id="vtail_exclude_tags" name="vtail_exclude_tags" value="' . esc_attr( $current ) . '" class="regular-text" />';
-		echo '<p class="description">' . esc_html__( 'Comma-separated HTML tags to skip during linking (e.g. h1,h2,h3)', 'vt-auto-internal-linker' ) . '</p>';
-		echo '</td>';
+		echo '<td><input type="text" id="vtail_exclude_tags" name="vtail_exclude_tags" value="' . esc_attr( $current ) . '" class="regular-text" />';
+		echo '<p class="description">' . esc_html__( 'Comma-separated HTML tags to skip during linking (e.g. h1,h2,h3)', 'vt-auto-internal-linker' ) . '</p></td>';
 		echo '</tr></tbody></table>';
 		submit_button( __( 'Save Settings', 'vt-auto-internal-linker' ) );
 		echo '</form>';
 	}
 
 	// -------------------------------------------------------------------------
-	// Add / Edit form view
+	// Rule add / edit form
 	// -------------------------------------------------------------------------
 
 	private function render_form_page( string $action ): void {
 		$id    = isset( $_GET['id'] ) ? absint( $_GET['id'] ) : 0;
-		$rule  = $id > 0 ? VTAIL_Rules_DB::get_by_id( $id ) : null;
-		$error = $this->handle_save(); // redirects on success; returns null or error string
+		$rule  = $id > 0 ? VTAIL_Rules_DB::get_rule_by_id( $id ) : null;
+		$error = $this->handle_rule_save();
 
-		// On validation failure, repopulate from submitted values so the user's input isn't lost.
 		if ( null !== $error ) {
-			$rule = $this->extract_post_values();
+			$rule = $this->extract_rule_post_values();
 		}
 
-		$defaults = [ 'keyword' => '', 'url' => '', 'case_sensitive' => 0,
-		              'max_per_post' => 1, 'nofollow' => 0, 'new_tab' => 0,
-		              'priority' => 10, 'active' => 1 ];
-		$values = $rule ?? $defaults;
-		$title  = 'edit' === $action
+		$defaults = [ 'url' => '', 'max_per_post' => 1, 'active' => 1 ];
+		$values   = $rule ?? $defaults;
+		$title    = 'edit' === $action
 			? __( 'Edit Rule', 'vt-auto-internal-linker' )
 			: __( 'Add New Rule', 'vt-auto-internal-linker' );
 
 		echo '<div class="wrap">';
 		echo '<h1>' . esc_html( $title ) . '</h1>';
-		$this->render_form( $id, $values, $error );
+		$this->render_rule_form( $id, $values, $error );
 		echo '</div>';
 	}
 
-	private function handle_save(): ?string {
+	private function handle_rule_save(): ?string {
 		if ( 'POST' !== $_SERVER['REQUEST_METHOD'] ) {
 			return null;
 		}
 
-		// Dies on nonce failure — intentional, no recovery needed.
 		check_admin_referer( 'vtail_save_rule' );
 
-		$id      = isset( $_POST['id'] ) ? absint( $_POST['id'] ) : 0;
-		$keyword = sanitize_text_field( wp_unslash( $_POST['keyword'] ?? '' ) );
-		$url     = esc_url_raw( wp_unslash( $_POST['url'] ?? '' ) );
-
-		if ( '' === $keyword ) {
-			return __( 'Keyword is required.', 'vt-auto-internal-linker' );
-		}
+		$url = esc_url_raw( wp_unslash( $_POST['url'] ?? '' ) );
 		if ( '' === $url ) {
 			return __( 'URL is required.', 'vt-auto-internal-linker' );
 		}
 
-		$data = $this->build_rule_data( $keyword, $url );
-		$id > 0 ? VTAIL_Rules_DB::update( $id, $data ) : VTAIL_Rules_DB::insert( $data );
+		$id   = isset( $_POST['id'] ) ? absint( $_POST['id'] ) : 0;
+		$data = $this->extract_rule_post_values();
+		$id > 0 ? VTAIL_Rules_DB::update_rule( $id, $data ) : $id = (int) VTAIL_Rules_DB::insert_rule( $data );
 
-		wp_safe_redirect( add_query_arg( [ 'page' => 'vtail-rules', 'saved' => '1' ], admin_url( 'options-general.php' ) ) );
+		wp_safe_redirect( add_query_arg( [ 'page' => 'vtail-rules', 'action' => 'edit', 'id' => $id, 'saved' => '1' ], admin_url( 'options-general.php' ) ) );
 		exit;
 	}
 
-	/**
-	 * Builds the data array from $_POST for DB insert/update.
-	 * keyword and url are pre-sanitized by the caller.
-	 *
-	 * @return array<string, mixed>
-	 */
-	private function build_rule_data( string $keyword, string $url ): array {
-		return [
-			'keyword'        => $keyword,
-			'url'            => $url,
-			'case_sensitive' => absint( $_POST['case_sensitive'] ?? 0 ),
-			'max_per_post'   => absint( $_POST['max_per_post'] ?? 1 ),
-			'nofollow'       => absint( $_POST['nofollow'] ?? 0 ),
-			'new_tab'        => absint( $_POST['new_tab'] ?? 0 ),
-			'priority'       => absint( $_POST['priority'] ?? 10 ),
-			'active'         => absint( $_POST['active'] ?? 0 ),
-		];
-	}
-
-	/**
-	 * Re-sanitizes $_POST values for form repopulation after a validation error.
-	 *
-	 * @return array<string, mixed>
-	 */
-	private function extract_post_values(): array {
-		return [
-			'keyword'        => sanitize_text_field( wp_unslash( $_POST['keyword'] ?? '' ) ),
-			'url'            => esc_url_raw( wp_unslash( $_POST['url'] ?? '' ) ),
-			'case_sensitive' => absint( $_POST['case_sensitive'] ?? 0 ),
-			'max_per_post'   => absint( $_POST['max_per_post'] ?? 1 ),
-			'nofollow'       => absint( $_POST['nofollow'] ?? 0 ),
-			'new_tab'        => absint( $_POST['new_tab'] ?? 0 ),
-			'priority'       => absint( $_POST['priority'] ?? 10 ),
-			'active'         => absint( $_POST['active'] ?? 0 ),
-		];
-	}
-
-	private function render_form( int $id, array $values, ?string $error ): void {
+	private function render_rule_form( int $id, array $values, ?string $error ): void {
 		$back_url = add_query_arg( [ 'page' => 'vtail-rules' ], admin_url( 'options-general.php' ) );
 		$args     = array_filter( [ 'page' => 'vtail-rules', 'action' => $id > 0 ? 'edit' : 'add', 'id' => $id ?: null ] );
 		$form_url = add_query_arg( $args, admin_url( 'options-general.php' ) );
@@ -349,49 +338,326 @@ class VTAIL_Admin {
 		wp_nonce_field( 'vtail_save_rule' );
 		echo '<input type="hidden" name="id" value="' . esc_attr( (string) $id ) . '" />';
 		echo '<table class="form-table"><tbody>';
-		$this->render_form_fields( $values );
-		$this->render_form_toggles( $values );
+		$this->render_rule_fields( $values );
 		echo '</tbody></table>';
 		submit_button( $id > 0 ? __( 'Update Rule', 'vt-auto-internal-linker' ) : __( 'Add Rule', 'vt-auto-internal-linker' ) );
 		echo '</form>';
+
+		if ( $id > 0 ) {
+			$this->render_keywords_section( $id );
+		} else {
+			echo '<p class="description">' . esc_html__( 'Save the rule first, then you can add keywords.', 'vt-auto-internal-linker' ) . '</p>';
+		}
 	}
 
-	private function render_form_fields( array $values ): void {
+	private function render_rule_fields( array $values ): void {
 		?>
 		<tr>
-			<th scope="row"><label for="keyword"><?php esc_html_e( 'Keyword', 'vt-auto-internal-linker' ); ?></label></th>
-			<td><input type="text" id="keyword" name="keyword" value="<?php echo esc_attr( (string) $values['keyword'] ); ?>" class="regular-text" required /></td>
+			<th scope="row"><label for="url"><?php esc_html_e( 'Target URL', 'vt-auto-internal-linker' ); ?></label></th>
+			<td>
+				<input type="url" id="url" name="url" value="<?php echo esc_attr( (string) $values['url'] ); ?>" class="regular-text" required />
+				<p class="description"><?php esc_html_e( 'Full URL including https://', 'vt-auto-internal-linker' ); ?></p>
+			</td>
 		</tr>
 		<tr>
-			<th scope="row"><label for="url"><?php esc_html_e( 'URL', 'vt-auto-internal-linker' ); ?></label></th>
-			<td><input type="text" id="url" name="url" value="<?php echo esc_attr( (string) $values['url'] ); ?>" class="regular-text" required /></td>
+			<th scope="row"><label for="max_per_post"><?php esc_html_e( 'Max Links / Post', 'vt-auto-internal-linker' ); ?></label></th>
+			<td>
+				<input type="number" id="max_per_post" name="max_per_post" value="<?php echo esc_attr( (string) $values['max_per_post'] ); ?>" min="1" class="small-text" />
+				<p class="description"><?php esc_html_e( 'Maximum total links to this URL in a single post (across all keywords).', 'vt-auto-internal-linker' ); ?></p>
+			</td>
 		</tr>
 		<tr>
-			<th scope="row"><label for="max_per_post"><?php esc_html_e( 'Max per Post', 'vt-auto-internal-linker' ); ?></label></th>
-			<td><input type="number" id="max_per_post" name="max_per_post" value="<?php echo esc_attr( (string) $values['max_per_post'] ); ?>" min="1" class="small-text" /></td>
-		</tr>
-		<tr>
-			<th scope="row"><label for="priority"><?php esc_html_e( 'Priority', 'vt-auto-internal-linker' ); ?></label></th>
-			<td><input type="number" id="priority" name="priority" value="<?php echo esc_attr( (string) $values['priority'] ); ?>" min="0" class="small-text" /></td>
+			<th scope="row"><label for="active"><?php esc_html_e( 'Active', 'vt-auto-internal-linker' ); ?></label></th>
+			<td><input type="checkbox" id="active" name="active" value="1" <?php checked( 1, (int) ( $values['active'] ?? 1 ) ); ?> /></td>
 		</tr>
 		<?php
 	}
 
-	private function render_form_toggles( array $values ): void {
-		$checkboxes = [
-			'case_sensitive' => __( 'Case Sensitive', 'vt-auto-internal-linker' ),
-			'nofollow'       => __( 'Nofollow', 'vt-auto-internal-linker' ),
-			'new_tab'        => __( 'Open in New Tab', 'vt-auto-internal-linker' ),
-			'active'         => __( 'Active', 'vt-auto-internal-linker' ),
-		];
+	// -------------------------------------------------------------------------
+	// Keywords section (shown on edit page only)
+	// -------------------------------------------------------------------------
 
-		foreach ( $checkboxes as $name => $label ) {
-			?>
-			<tr>
-				<th scope="row"><label for="<?php echo esc_attr( $name ); ?>"><?php echo esc_html( $label ); ?></label></th>
-				<td><input type="checkbox" id="<?php echo esc_attr( $name ); ?>" name="<?php echo esc_attr( $name ); ?>" value="1" <?php checked( 1, (int) ( $values[ $name ] ?? 0 ) ); ?> /></td>
-			</tr>
-			<?php
+	private function render_keywords_section( int $rule_id ): void {
+		$keywords = VTAIL_Rules_DB::get_keywords_by_rule( $rule_id );
+		$stats    = VTAIL_Rules_DB::get_stats();
+		?>
+		<hr />
+		<h2><?php esc_html_e( 'Keywords', 'vt-auto-internal-linker' ); ?></h2>
+		<table class="wp-list-table widefat fixed striped vtail-keywords-table" id="vtail-keywords-table">
+			<thead>
+				<tr>
+					<th><?php esc_html_e( 'Keyword', 'vt-auto-internal-linker' ); ?></th>
+					<th><?php esc_html_e( 'Max / Post', 'vt-auto-internal-linker' ); ?></th>
+					<th><?php esc_html_e( 'Priority', 'vt-auto-internal-linker' ); ?></th>
+					<th><?php esc_html_e( 'Total Limit', 'vt-auto-internal-linker' ); ?></th>
+					<th><?php esc_html_e( 'Link Stats', 'vt-auto-internal-linker' ); ?></th>
+					<th><?php esc_html_e( 'Anchor (#)', 'vt-auto-internal-linker' ); ?></th>
+					<th><?php esc_html_e( 'Settings', 'vt-auto-internal-linker' ); ?></th>
+					<th><?php esc_html_e( 'Active', 'vt-auto-internal-linker' ); ?></th>
+					<th><?php esc_html_e( 'Actions', 'vt-auto-internal-linker' ); ?></th>
+				</tr>
+			</thead>
+			<tbody>
+				<?php if ( empty( $keywords ) ) : ?>
+					<tr class="vtail-no-keywords"><td colspan="9"><?php esc_html_e( 'No keywords yet. Add the first one below.', 'vt-auto-internal-linker' ); ?></td></tr>
+				<?php else : ?>
+					<?php foreach ( $keywords as $kw ) : ?>
+						<?php echo $this->build_keyword_row_html( $kw, $stats ); // phpcs:ignore WordPress.Security.EscapeOutput ?>
+					<?php endforeach; ?>
+				<?php endif; ?>
+			</tbody>
+		</table>
+
+		<p>
+			<button type="button" id="vtail-add-keyword" class="button">
+				<?php esc_html_e( '+ Add Keyword', 'vt-auto-internal-linker' ); ?>
+			</button>
+		</p>
+
+		<?php $this->render_keyword_inline_form( $rule_id ); ?>
+		<?php
+	}
+
+	private function render_keyword_inline_form( int $rule_id ): void {
+		?>
+		<div id="vtail-keyword-form-wrap" style="display:none;" class="vtail-keyword-form-wrap">
+			<h3 id="vtail-keyword-form-title"><?php esc_html_e( 'Add Keyword', 'vt-auto-internal-linker' ); ?></h3>
+			<form id="vtail-keyword-form">
+				<input type="hidden" name="action" value="vtail_save_keyword" />
+				<input type="hidden" name="rule_id" value="<?php echo esc_attr( (string) $rule_id ); ?>" />
+				<input type="hidden" id="vtail-kw-id" name="keyword_id" value="0" />
+				<table class="form-table"><tbody>
+					<tr>
+						<th><label for="vtail-kw-keyword"><?php esc_html_e( 'Keyword', 'vt-auto-internal-linker' ); ?></label></th>
+						<td><input type="text" id="vtail-kw-keyword" name="keyword" class="regular-text" required /></td>
+					</tr>
+					<tr>
+						<th><label for="vtail-kw-max-per-post"><?php esc_html_e( 'Max per Post', 'vt-auto-internal-linker' ); ?></label></th>
+						<td>
+							<input type="number" id="vtail-kw-max-per-post" name="max_per_post" value="1" min="1" class="small-text" />
+							<p class="description"><?php esc_html_e( 'Max times this keyword is linked in a single post.', 'vt-auto-internal-linker' ); ?></p>
+						</td>
+					</tr>
+					<tr>
+						<th><label for="vtail-kw-priority"><?php esc_html_e( 'Priority', 'vt-auto-internal-linker' ); ?></label></th>
+						<td>
+							<input type="number" id="vtail-kw-priority" name="priority" value="10" min="1" class="small-text" />
+							<p class="description"><?php esc_html_e( 'Lower number = higher priority. Used when rule max/post is 1 and multiple keywords match.', 'vt-auto-internal-linker' ); ?></p>
+						</td>
+					</tr>
+					<tr>
+						<th><label for="vtail-kw-total-limit"><?php esc_html_e( 'Total Limit', 'vt-auto-internal-linker' ); ?></label></th>
+						<td>
+							<input type="number" id="vtail-kw-total-limit" name="total_limit" value="0" min="0" class="small-text" />
+							<p class="description"><?php esc_html_e( '0 = unlimited. Stop linking once this many links exist across the entire site.', 'vt-auto-internal-linker' ); ?></p>
+						</td>
+					</tr>
+					<tr>
+						<th><label for="vtail-kw-anchor"><?php esc_html_e( 'Anchor Section', 'vt-auto-internal-linker' ); ?></label></th>
+						<td>
+							<span class="vtail-anchor-prefix">#</span><input type="text" id="vtail-kw-anchor" name="anchor" class="regular-text" placeholder="<?php esc_attr_e( 'e.g. about', 'vt-auto-internal-linker' ); ?>" />
+							<p class="description"><?php esc_html_e( 'Optional. Links to a specific section of the target page (e.g. "about" → URL#about).', 'vt-auto-internal-linker' ); ?></p>
+						</td>
+					</tr>
+					<tr>
+						<th><?php esc_html_e( 'Options', 'vt-auto-internal-linker' ); ?></th>
+						<td>
+							<label><input type="checkbox" id="vtail-kw-case-sensitive" name="case_sensitive" value="1" /> <?php esc_html_e( 'Case Sensitive', 'vt-auto-internal-linker' ); ?></label><br />
+							<label><input type="checkbox" id="vtail-kw-nofollow" name="nofollow" value="1" /> <?php esc_html_e( 'Nofollow', 'vt-auto-internal-linker' ); ?></label><br />
+							<label><input type="checkbox" id="vtail-kw-new-tab" name="new_tab" value="1" /> <?php esc_html_e( 'Open in New Tab', 'vt-auto-internal-linker' ); ?></label><br />
+							<label><input type="checkbox" id="vtail-kw-active" name="active" value="1" checked /> <?php esc_html_e( 'Active', 'vt-auto-internal-linker' ); ?></label>
+						</td>
+					</tr>
+				</tbody></table>
+				<input type="submit" id="vtail-keyword-submit" class="button button-primary" value="<?php esc_attr_e( 'Save Keyword', 'vt-auto-internal-linker' ); ?>" data-original="<?php esc_attr_e( 'Save Keyword', 'vt-auto-internal-linker' ); ?>" data-saving="<?php esc_attr_e( 'Saving...', 'vt-auto-internal-linker' ); ?>" />
+				<button type="button" id="vtail-keyword-cancel" class="button"><?php esc_html_e( 'Cancel', 'vt-auto-internal-linker' ); ?></button>
+			</form>
+		</div>
+		<?php
+	}
+
+	/**
+	 * Builds the HTML for a single keyword table row.
+	 * Used both on page load and in the AJAX response for keyword save.
+	 *
+	 * @param array<string, mixed> $kw
+	 * @param array<string, mixed> $stats
+	 */
+	private function build_keyword_row_html( array $kw, array $stats = [] ): string {
+		if ( empty( $stats ) ) {
+			$stats = VTAIL_Rules_DB::get_stats();
 		}
+
+		$kw_id      = (int) $kw['id'];
+		$kw_stats   = $stats[ (string) $kw_id ] ?? [ 'count' => 0, 'posts' => [] ];
+		$count      = (int) $kw_stats['count'];
+		$stats_url  = add_query_arg( [ 'page' => 'vtail-rules', 'action' => 'stats', 'keyword_id' => $kw_id ], admin_url( 'options-general.php' ) );
+		$total_disp = (int) $kw['total_limit'] === 0 ? esc_html__( '∞', 'vt-auto-internal-linker' ) : esc_html( (string) $kw['total_limit'] );
+		$anchor     = '' !== $kw['anchor'] ? '#' . esc_html( $kw['anchor'] ) : '—';
+		$settings   = $this->build_settings_badge( $kw );
+		$active     = (int) $kw['active'] ? esc_html__( 'Yes', 'vt-auto-internal-linker' ) : esc_html__( 'No', 'vt-auto-internal-linker' );
+
+		$edit_data = sprintf(
+			'data-id="%d" data-keyword="%s" data-max-per-post="%d" data-priority="%d" data-total-limit="%d" data-anchor="%s" data-case-sensitive="%d" data-nofollow="%d" data-new-tab="%d" data-active="%d"',
+			$kw_id,
+			esc_attr( (string) $kw['keyword'] ),
+			(int) $kw['max_per_post'],
+			(int) $kw['priority'],
+			(int) $kw['total_limit'],
+			esc_attr( (string) $kw['anchor'] ),
+			(int) $kw['case_sensitive'],
+			(int) $kw['nofollow'],
+			(int) $kw['new_tab'],
+			(int) $kw['active']
+		);
+
+		return sprintf(
+			'<tr id="vtail-kw-row-%d">
+				<td><strong>%s</strong></td>
+				<td>%d</td>
+				<td>%d</td>
+				<td>%s</td>
+				<td><a href="%s">%s</a></td>
+				<td>%s</td>
+				<td>%s</td>
+				<td>%s</td>
+				<td>
+					<button type="button" class="button button-small vtail-edit-keyword" %s>%s</button>
+					<button type="button" class="button button-small vtail-delete-keyword" data-id="%d">%s</button>
+				</td>
+			</tr>',
+			$kw_id,
+			esc_html( (string) $kw['keyword'] ),
+			(int) $kw['max_per_post'],
+			(int) $kw['priority'],
+			$total_disp,
+			esc_url( $stats_url ),
+			esc_html( (string) $count ),
+			$anchor,
+			$settings,
+			$active,
+			$edit_data,
+			esc_html__( 'Edit', 'vt-auto-internal-linker' ),
+			$kw_id,
+			esc_html__( 'Delete', 'vt-auto-internal-linker' )
+		);
+	}
+
+	/**
+	 * Returns compact badges for case_sensitive / nofollow / new_tab flags.
+	 *
+	 * @param array<string, mixed> $kw
+	 */
+	private function build_settings_badge( array $kw ): string {
+		$parts = [];
+		if ( (int) $kw['case_sensitive'] ) {
+			$parts[] = '<span class="vtail-badge">' . esc_html__( 'Aa', 'vt-auto-internal-linker' ) . '</span>';
+		}
+		if ( (int) $kw['nofollow'] ) {
+			$parts[] = '<span class="vtail-badge">' . esc_html__( 'NF', 'vt-auto-internal-linker' ) . '</span>';
+		}
+		if ( (int) $kw['new_tab'] ) {
+			$parts[] = '<span class="vtail-badge">' . esc_html__( '↗', 'vt-auto-internal-linker' ) . '</span>';
+		}
+		return empty( $parts ) ? '—' : implode( ' ', $parts );
+	}
+
+	// -------------------------------------------------------------------------
+	// Stats detail page
+	// -------------------------------------------------------------------------
+
+	private function render_stats_page(): void {
+		$keyword_id = isset( $_GET['keyword_id'] ) ? absint( $_GET['keyword_id'] ) : 0;
+		$kw         = $keyword_id ? VTAIL_Rules_DB::get_keyword_by_id( $keyword_id ) : null;
+
+		if ( ! $kw ) {
+			echo '<div class="wrap"><h1>' . esc_html__( 'Link Stats', 'vt-auto-internal-linker' ) . '</h1>';
+			echo '<div class="notice notice-error"><p>' . esc_html__( 'Keyword not found.', 'vt-auto-internal-linker' ) . '</p></div></div>';
+			return;
+		}
+
+		$rule      = VTAIL_Rules_DB::get_rule_by_id( (int) $kw['rule_id'] );
+		$kw_stats  = VTAIL_Rules_DB::get_keyword_stats( $keyword_id );
+		$back_url  = add_query_arg( [ 'page' => 'vtail-rules', 'action' => 'edit', 'id' => $kw['rule_id'] ], admin_url( 'options-general.php' ) );
+
+		echo '<div class="wrap">';
+		echo '<h1>' . esc_html__( 'Link Stats', 'vt-auto-internal-linker' ) . ': <em>' . esc_html( (string) $kw['keyword'] ) . '</em></h1>';
+		echo '<p><a href="' . esc_url( $back_url ) . '">&larr; ' . esc_html__( 'Back to Rule', 'vt-auto-internal-linker' ) . '</a></p>';
+
+		echo '<table class="form-table"><tbody>';
+		echo '<tr><th>' . esc_html__( 'Keyword', 'vt-auto-internal-linker' ) . '</th><td>' . esc_html( (string) $kw['keyword'] ) . '</td></tr>';
+		echo '<tr><th>' . esc_html__( 'Target URL', 'vt-auto-internal-linker' ) . '</th><td>' . ( $rule ? '<a href="' . esc_url( $rule['url'] ) . '" target="_blank" rel="noopener noreferrer">' . esc_html( $rule['url'] ) . '</a>' : '—' ) . '</td></tr>';
+		echo '<tr><th>' . esc_html__( 'Total Links Found', 'vt-auto-internal-linker' ) . '</th><td><strong>' . esc_html( (string) $kw_stats['count'] ) . '</strong></td></tr>';
+		echo '</tbody></table>';
+
+		$this->render_stats_posts_table( $kw_stats['posts'] ?? [] );
+
+		echo '<p class="description">' . esc_html__( 'Stats are updated manually. Use the "Update Stats" button on the rules page.', 'vt-auto-internal-linker' ) . '</p>';
+		echo '</div>';
+	}
+
+	/**
+	 * @param list<int> $post_ids
+	 */
+	private function render_stats_posts_table( array $post_ids ): void {
+		if ( empty( $post_ids ) ) {
+			echo '<p>' . esc_html__( 'No links found yet. Run the stats scan to update.', 'vt-auto-internal-linker' ) . '</p>';
+			return;
+		}
+
+		echo '<h3>' . esc_html__( 'Posts / Pages with this link', 'vt-auto-internal-linker' ) . '</h3>';
+		echo '<table class="wp-list-table widefat fixed striped"><thead><tr>';
+		echo '<th>' . esc_html__( 'Title', 'vt-auto-internal-linker' ) . '</th>';
+		echo '<th>' . esc_html__( 'URL', 'vt-auto-internal-linker' ) . '</th>';
+		echo '<th>' . esc_html__( 'Edit', 'vt-auto-internal-linker' ) . '</th>';
+		echo '</tr></thead><tbody>';
+
+		foreach ( $post_ids as $post_id ) {
+			$post = get_post( (int) $post_id );
+			if ( ! $post ) {
+				continue;
+			}
+			$permalink = get_permalink( $post );
+			echo '<tr>';
+			echo '<td>' . esc_html( get_the_title( $post ) ) . '</td>';
+			echo '<td><a href="' . esc_url( (string) $permalink ) . '" target="_blank" rel="noopener noreferrer">' . esc_html( (string) $permalink ) . '</a></td>';
+			echo '<td><a href="' . esc_url( get_edit_post_link( $post ) ) . '">' . esc_html__( 'Edit', 'vt-auto-internal-linker' ) . '</a></td>';
+			echo '</tr>';
+		}
+
+		echo '</tbody></table>';
+	}
+
+	// -------------------------------------------------------------------------
+	// Private helpers
+	// -------------------------------------------------------------------------
+
+	/**
+	 * @return array<string, mixed>
+	 */
+	private function extract_rule_post_values(): array {
+		return [
+			'url'          => esc_url_raw( wp_unslash( $_POST['url'] ?? '' ) ),
+			'max_per_post' => absint( $_POST['max_per_post'] ?? 1 ),
+			'active'       => absint( $_POST['active'] ?? 0 ),
+		];
+	}
+
+	/**
+	 * @return array<string, mixed>
+	 */
+	private function extract_keyword_post_values( int $rule_id ): array {
+		return [
+			'rule_id'        => $rule_id,
+			'keyword'        => sanitize_text_field( wp_unslash( $_POST['keyword'] ?? '' ) ),
+			'max_per_post'   => absint( $_POST['max_per_post'] ?? 1 ),
+			'priority'       => absint( $_POST['priority'] ?? 10 ),
+			'total_limit'    => absint( $_POST['total_limit'] ?? 0 ),
+			'anchor'         => sanitize_title( wp_unslash( $_POST['anchor'] ?? '' ) ),
+			'case_sensitive' => absint( $_POST['case_sensitive'] ?? 0 ),
+			'nofollow'       => absint( $_POST['nofollow'] ?? 0 ),
+			'new_tab'        => absint( $_POST['new_tab'] ?? 0 ),
+			'active'         => absint( $_POST['active'] ?? 0 ),
+		];
 	}
 }
