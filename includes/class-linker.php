@@ -40,7 +40,7 @@ class VTAIL_Linker {
 			if ( $this->is_self_link( $rule['url'], $current_url ) ) {
 				continue;
 			}
-			$content = $this->apply_rule( $content, $rule );
+			$content = $this->apply_rule( $content, $rule, $placeholders );
 		}
 
 		return $this->restore_blocks( $content, $placeholders );
@@ -90,9 +90,12 @@ class VTAIL_Linker {
 	/**
 	 * Applies all keywords for a single rule, respecting the rule-level max_per_post
 	 * cap across all keywords combined. Keywords are already sorted by priority ASC.
+	 * Existing manual links to the rule URL in $placeholders pre-consume the budget.
+	 *
+	 * @param array<int, string> $placeholders Protected-block map from protect_blocks().
 	 */
-	private function apply_rule( string $content, array $rule ): string {
-		$links_to_url = 0;
+	private function apply_rule( string $content, array $rule, array $placeholders ): string {
+		$links_to_url = $this->count_existing_links( $placeholders, $rule['url'] );
 		$rule_max     = max( 1, (int) $rule['max_per_post'] );
 
 		foreach ( $rule['keywords'] as $keyword ) {
@@ -161,6 +164,31 @@ class VTAIL_Linker {
 
 		$count = (int) ( $stats[ (string) $keyword['id'] ]['count'] ?? 0 );
 		return $count >= $total_limit;
+	}
+
+	/**
+	 * Counts how many placeholders are <a> tags linking to $rule_url (anchor stripped).
+	 * Used to pre-consume the max_per_post budget for manual links before auto-linking.
+	 *
+	 * @param array<int, string> $placeholders
+	 */
+	private function count_existing_links( array $placeholders, string $rule_url ): int {
+		$bare_rule = untrailingslashit( explode( '#', $rule_url, 2 )[0] );
+		$count     = 0;
+
+		foreach ( $placeholders as $block ) {
+			if ( ! preg_match( '/^<a[\s>]/i', $block ) ) {
+				continue;
+			}
+			if ( preg_match( '/\bhref=["\']([^"\']*)["\']/', $block, $m ) ) {
+				$bare_href = untrailingslashit( explode( '#', $m[1], 2 )[0] );
+				if ( $bare_href === $bare_rule ) {
+					++$count;
+				}
+			}
+		}
+
+		return $count;
 	}
 
 	private function build_pattern( string $keyword, bool $case_sensitive ): string {

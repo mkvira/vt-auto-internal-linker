@@ -808,6 +808,9 @@ class VTAIL_Admin {
 			return;
 		}
 
+		// Strip protected blocks so keywords inside <a>, <pre>, <code>, and exclude_tags
+		// are never counted — mirrors the linker's block protection logic.
+		$content   = $this->strip_protected_blocks( $content );
 		$permalink = (string) get_permalink( $post );
 
 		foreach ( $rules as $rule ) {
@@ -850,6 +853,23 @@ class VTAIL_Admin {
 		}
 		$bare = (string) strtok( $rule_url, '#' );
 		return untrailingslashit( $bare ) === untrailingslashit( $post_permalink );
+	}
+
+	/**
+	 * Replaces content inside protected tags with a space so keywords that appear
+	 * inside <a>, <pre>, <code>, or user-configured exclude_tags are not counted.
+	 */
+	private function strip_protected_blocks( string $content ): string {
+		$tags = $this->get_scan_block_tags();
+		$alts = implode( '|', array_map( fn( string $t ): string => preg_quote( $t, '/' ), $tags ) );
+		return (string) preg_replace( '/<(' . $alts . ')(?:\s[^>]*)?>.*?<\/\1>/is', ' ', $content );
+	}
+
+	private function get_scan_block_tags(): array {
+		$hardcoded = [ 'a', 'pre', 'code' ];
+		$option    = (string) get_option( 'vtail_exclude_tags', '' );
+		$extra     = array_filter( array_map( 'trim', explode( ',', $option ) ) );
+		return array_values( array_unique( array_merge( $hardcoded, $extra ) ) );
 	}
 
 	/**
