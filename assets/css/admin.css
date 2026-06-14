@@ -9,6 +9,14 @@
 /* ── Rules list table ────────────────────────────────────────────────── */
 
 /* Keep narrow columns from over-expanding */
+.settings_page_vtail-rules .column-id {
+	width: 50px;
+}
+
+.settings_page_vtail-rules .column-title {
+	width: 18%;
+}
+
 .settings_page_vtail-rules .column-max_per_post {
 	width: 90px;
 }
@@ -19,6 +27,8 @@
 
 .settings_page_vtail-rules .column-url {
 	width: 30%;
+	direction: ltr;
+	text-align: left;
 }
 
 /* Prevent long URLs from stretching or wrapping in their column */
@@ -29,6 +39,8 @@
 	text-overflow: ellipsis;
 	white-space: nowrap;
 	vertical-align: bottom;
+	direction: ltr;
+	unicode-bidi: embed;
 }
 
 /* ── Add / Edit form ─────────────────────────────────────────────────── */
@@ -42,4 +54,106 @@
 .settings_page_vtail-rules .wrap > p:first-of-type {
 	margin-top: 6px;
 	margin-bottom: 16px;
+}
+
+/* ── Keywords table ──────────────────────────────────────────────────── */
+
+/* Stat count badge inside the Keywords column of the rules list */
+.settings_page_vtail-rules .vtail-kw-stat {
+	color: #666;
+	font-size: 12px;
+}
+
+.settings_page_vtail-rules .vtail-keywords-table th,
+.settings_page_vtail-rules .vtail-keywords-table td {
+	padding: 8px 10px;
+	vertical-align: middle;
+}
+
+.settings_page_vtail-rules .vtail-keywords-table .column-keyword {
+	min-width: 140px;
+}
+
+/* ── Settings badges (Aa / NF / ↗) ──────────────────────────────────── */
+
+.settings_page_vtail-rules .vtail-badge {
+	display: inline-block;
+	padding: 1px 5px;
+	font-size: 11px;
+	font-weight: 600;
+	line-height: 1.6;
+	border-radius: 3px;
+	background: #e0e0e0;
+	color: #444;
+}
+
+/* ── Keyword inline form ─────────────────────────────────────────────── */
+
+.settings_page_vtail-rules .vtail-keyword-form-wrap {
+	margin-top: 16px;
+	padding: 16px 20px 20px;
+	background: #fff;
+	border: 1px solid #c3c4c7;
+	border-radius: 3px;
+}
+
+.settings_page_vtail-rules .vtail-keyword-form-wrap h3 {
+	margin-top: 0;
+}
+
+/* # prefix sits inline with the anchor text input.
+   dir="ltr" on .vtail-anchor-group keeps # always visually before the field
+   regardless of site direction (RTL/LTR). */
+.settings_page_vtail-rules .vtail-anchor-group {
+	display: inline-flex;
+	align-items: stretch;
+	direction: ltr;
+}
+
+.settings_page_vtail-rules .vtail-anchor-prefix {
+	display: inline-flex;
+	align-items: center;
+	padding: 0 6px;
+	background: #f0f0f1;
+	border: 1px solid #8c8f94;
+	border-right: none;
+	border-radius: 3px 0 0 3px;
+	font-weight: 600;
+	line-height: 1;
+	white-space: nowrap;
+}
+
+.settings_page_vtail-rules #vtail-kw-anchor {
+	border-radius: 0 3px 3px 0;
+	margin: 0;
+}
+
+/* ── Stats scan button & progress ───────────────────────────────────── */
+
+.settings_page_vtail-rules .vtail-scan-wrap {
+	margin: 4px 0 12px;
+}
+
+.settings_page_vtail-rules .vtail-progress-bar {
+	display: block;
+	margin-top: 6px;
+	height: 6px;
+	background: #ddd;
+	border-radius: 3px;
+	overflow: hidden;
+	max-width: 300px;
+}
+
+.settings_page_vtail-rules #vtail-progress-fill {
+	height: 100%;
+	background: #2271b1;
+	border-radius: 3px;
+	transition: width 0.3s ease;
+}
+
+.settings_page_vtail-rules #vtail-scan-status {
+	display: inline-block;
+	margin-left: 10px;
+	font-style: italic;
+	color: #666;
 }
