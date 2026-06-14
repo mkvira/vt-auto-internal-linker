@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.1.2] - 2026-06-14
+
+### Added
+- `FA_README.md` — full Persian documentation with SEO-optimized content and cross-link to English version
+- `README.md` updated with SEO-optimized English content and link to Persian version
+
+### Fixed
+- Stats scan now strips content inside `<a>`, `<pre>`, `<code>`, and user-configured exclude tags before keyword matching — manual links in post content are no longer counted as plugin-generated links
+- Manual links to a rule's URL now pre-consume the `max_per_post` budget; the linker will not add automatic links on top of existing manual ones unless the cap allows additional links
+- `Tested up to` in `readme.txt` updated from 6.7 to 6.8
+
+---
+
 ## [1.1.1] - 2026-06-14
 
 ### Added

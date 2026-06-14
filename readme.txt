@@ -3,7 +3,7 @@ Contributors: mkvira
 Tags: internal links, seo, auto linking, links, keywords
 Requires at least: 5.5
 Tested up to: 6.8
-Stable tag: 1.1.1
+Stable tag: 1.1.2
 Requires PHP: 7.4
 License: GPL-2.0-or-later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
@@ -48,6 +48,12 @@ Yes, as long as the page builder or block editor outputs content through the sta
 
 == Changelog ==
 
+= 1.1.2 =
+* Fixed: stats scan no longer counts keywords found inside existing manual links (`<a>` tags).
+* Fixed: manual links to a rule's URL now count against `max_per_post` — no duplicate auto-linking on top of existing anchors.
+* Added Persian documentation (`FA_README.md`) with SEO-optimized content.
+* Updated: Tested up to WordPress 6.8.
+
 = 1.1.1 =
 * Rules list: ID and Title columns added; Keywords column shows keyword text with per-keyword link counts.
 * Scan button moved to page-title area; URL column is always LTR; Edit/Delete actions moved under Title.
@@ -74,6 +80,9 @@ Yes, as long as the page builder or block editor outputs content through the sta
 * Fully internationalised with `.pot` file included.
 
 == Upgrade Notice ==
+
+= 1.1.2 =
+Bug fix update. Stats scan and max_per_post behaviour are now more accurate. No database changes.
 
 = 1.1.1 =
 Minor update with admin UI improvements and a stats scan bug fix. No database changes.
