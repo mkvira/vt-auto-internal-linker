@@ -1,7 +1,7 @@
 <?php
 /**
  * Plugin Name:       VT Auto Internal Linker
- * Plugin URI:        https://vira-team.com
+ * Plugin URI:        https://github.com/mkvira/vt-auto-internal-linker
  * Description:       Automatically inserts internal links into post/page content based on user-defined keyword→URL rules.
  * Version:           1.1.2
  * Requires at least: 5.5
