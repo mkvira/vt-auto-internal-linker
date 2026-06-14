@@ -56,7 +56,9 @@ Yes, as long as the page builder or block editor outputs content through the sta
 * Stats detail page lists every post containing a given keyword link with direct edit access.
 * DB migration to schema v2 with `vtail_keywords` table; existing rules migrated automatically on update.
 * Linker rewritten: single JOIN query (static-cached per request), `is_singular()` bail-early, self-link check now strips `#anchor` before comparing URLs.
+* Rules list now shows rule ID, title, keyword text with per-keyword link counts, and an LTR URL column.
 * i18n: 73 translatable strings (up from 24); Persian (fa_IR) translation updated.
+* Fixed: stats scan no longer double-counts overlapping keywords — priority order is respected during scan.
 * Fixed: Global Settings strings (Exclude Tags, Save Settings) were missing from the .pot file in v1.0.0.
 
 = 1.0.0 =

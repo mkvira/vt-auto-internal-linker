@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-## [1.1.0] - 2026-06-13
+## [1.1.0] - 2026-06-14
 
 ### Added
 - Multi-keyword rule system: each URL rule now holds multiple keywords managed from a single edit screen
@@ -26,9 +26,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `VTAIL_Rules_DB` stats helpers: `get_stats()`, `update_stats()`, `get_keyword_stats()`, `delete_keyword_stats()`
 - `assets/js/admin.js` — keyword form reveal/populate, AJAX save/delete, scan progress loop
 - i18n: 73 translatable strings (up from 24 in v1.0.0); Persian (fa_IR) translation fully updated
+- Rules list table: ID column, Title column, and per-keyword text with stats count in Keywords column
+- Rules list table: "Update Link Stats" scan button moved to page-title area for better visibility
 
 ### Changed
-- Rules list table now shows URL, keyword count, max-per-post, and active status (replaces old keyword-centric columns)
+- Rules list table now shows ID, title, URL, keyword text with stats, max-per-post, and active status
+- Keywords column displays each keyword's text and link count instead of a bare keyword count
+- URL column is always rendered LTR/left-aligned regardless of site direction
+- Row actions (Edit / Delete) moved from URL column to Title column
 - Rule add/edit form split: rule-level fields (URL, max_per_post, active) at top; keyword management section below
 - Linker now uses `get_active_rules_with_keywords()` instead of `get_all()`; respects rule-level cap alongside per-keyword cap
 - `is_self_link()` now strips `#anchor` from the rule URL before comparing with the current permalink
@@ -36,6 +41,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `admin.css` extended with keyword table, settings badge, anchor input prefix, and scan progress bar styles
 
 ### Fixed
+- Stats scan now processes keywords within each rule in priority order using a per-rule working copy of the content; lower-priority keywords no longer count matches already consumed by a higher-priority keyword in the same rule
 - `Global Settings`, `Exclude Tags`, `Save Settings`, and `Settings saved.` strings were in v1.0.0 admin code but missing from the `.pot` file
 
 ---
