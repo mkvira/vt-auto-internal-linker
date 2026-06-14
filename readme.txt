@@ -3,7 +3,7 @@ Contributors: mkvira
 Tags: internal links, seo, auto linking, links, keywords
 Requires at least: 5.5
 Tested up to: 6.7
-Stable tag: 1.1.0
+Stable tag: 1.1.1
 Requires PHP: 7.4
 License: GPL-2.0-or-later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
@@ -48,6 +48,11 @@ Yes, as long as the page builder or block editor outputs content through the sta
 
 == Changelog ==
 
+= 1.1.1 =
+* Rules list: ID and Title columns added; Keywords column shows keyword text with per-keyword link counts.
+* Scan button moved to page-title area; URL column is always LTR; Edit/Delete actions moved under Title.
+* Fixed: stats scan no longer double-counts overlapping keywords — priority order is respected during scan.
+
 = 1.1.0 =
 * Multi-keyword rules: each URL rule now supports multiple keywords with individual settings.
 * Per-keyword controls: priority, max per post, site-wide total limit, anchor (#section), case sensitivity, nofollow, open in new tab.
@@ -56,9 +61,7 @@ Yes, as long as the page builder or block editor outputs content through the sta
 * Stats detail page lists every post containing a given keyword link with direct edit access.
 * DB migration to schema v2 with `vtail_keywords` table; existing rules migrated automatically on update.
 * Linker rewritten: single JOIN query (static-cached per request), `is_singular()` bail-early, self-link check now strips `#anchor` before comparing URLs.
-* Rules list now shows rule ID, title, keyword text with per-keyword link counts, and an LTR URL column.
 * i18n: 73 translatable strings (up from 24); Persian (fa_IR) translation updated.
-* Fixed: stats scan no longer double-counts overlapping keywords — priority order is respected during scan.
 * Fixed: Global Settings strings (Exclude Tags, Save Settings) were missing from the .pot file in v1.0.0.
 
 = 1.0.0 =
@@ -71,6 +74,9 @@ Yes, as long as the page builder or block editor outputs content through the sta
 * Fully internationalised with `.pot` file included.
 
 == Upgrade Notice ==
+
+= 1.1.1 =
+Minor update with admin UI improvements and a stats scan bug fix. No database changes.
 
 = 1.1.0 =
 Database schema upgraded automatically on activation. Existing rules are migrated to the new multi-keyword structure — no manual action required.
