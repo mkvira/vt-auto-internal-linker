@@ -68,11 +68,11 @@ class VTAIL_Rules_List_Table extends WP_List_Table {
 	}
 
 	/**
-	 * URL column with row actions.
+	 * Title column with row actions.
 	 *
 	 * @param array<string, mixed> $item
 	 */
-	public function column_url( array $item ): string {
+	public function column_title( array $item ): string {
 		$id         = absint( $item['id'] );
 		$base_url   = admin_url( 'options-general.php?page=vtail-rules' );
 		$edit_url   = add_query_arg( [ 'action' => 'edit', 'id' => $id ], $base_url );
@@ -86,8 +86,18 @@ class VTAIL_Rules_List_Table extends WP_List_Table {
 			'delete' => '<a href="' . esc_url( $delete_url ) . '" onclick="return confirm(\'' . esc_js( __( 'Delete this rule and all its keywords?', 'vt-auto-internal-linker' ) ) . '\')">' . esc_html__( 'Delete', 'vt-auto-internal-linker' ) . '</a>',
 		];
 
-		$link = '<a href="' . esc_url( (string) $item['url'] ) . '" target="_blank" rel="noopener noreferrer">' . esc_html( (string) $item['url'] ) . '</a>';
-		return $link . $this->row_actions( $actions );
+		$title = trim( (string) ( $item['title'] ?? '' ) );
+		$label = '' !== $title ? esc_html( $title ) : '<span aria-hidden="true">—</span>';
+		return $label . $this->row_actions( $actions );
+	}
+
+	/**
+	 * URL column — link only, no row actions.
+	 *
+	 * @param array<string, mixed> $item
+	 */
+	public function column_url( array $item ): string {
+		return '<a href="' . esc_url( (string) $item['url'] ) . '" target="_blank" rel="noopener noreferrer">' . esc_html( (string) $item['url'] ) . '</a>';
 	}
 
 	/**
@@ -211,10 +221,10 @@ class VTAIL_Admin {
 			wp_send_json_error( [ 'message' => __( 'Permission denied.', 'vt-auto-internal-linker' ) ] );
 		}
 
-		$batch    = absint( $_POST['batch'] ?? 0 );
-		$keywords = $this->get_all_active_keywords();
+		$batch = absint( $_POST['batch'] ?? 0 );
+		$rules = VTAIL_Rules_DB::get_active_rules_with_keywords();
 
-		if ( empty( $keywords ) ) {
+		if ( empty( $rules ) ) {
 			wp_send_json_success( [ 'done' => true, 'total_posts' => 0, 'scanned' => 0 ] );
 		}
 
@@ -226,7 +236,7 @@ class VTAIL_Admin {
 		$stats = VTAIL_Rules_DB::get_stats();
 
 		foreach ( $query->posts as $post ) {
-			$this->scan_post_for_keywords( $post, $keywords, $stats );
+			$this->scan_post_for_keywords( $post, $rules, $stats );
 		}
 
 		VTAIL_Rules_DB::update_stats( $stats );
@@ -768,22 +778,6 @@ class VTAIL_Admin {
 	}
 
 	/**
-	 * Returns a flat list of all active keywords across all active rules.
-	 *
-	 * @return array<int, array<string, mixed>>
-	 */
-	private function get_all_active_keywords(): array {
-		$keywords = [];
-		foreach ( VTAIL_Rules_DB::get_active_rules_with_keywords() as $rule ) {
-			foreach ( $rule['keywords'] as $kw ) {
-				$kw['rule_url'] = $rule['url'];
-				$keywords[]     = $kw;
-			}
-		}
-		return $keywords;
-	}
-
-	/**
 	 * Runs a WP_Query for a batch of 15 published posts across all public post types.
 	 */
 	private function run_posts_batch( int $batch ): \WP_Query {
@@ -799,12 +793,16 @@ class VTAIL_Admin {
 	}
 
 	/**
-	 * Checks a single post's content against all keywords and updates $stats in-place.
+	 * Checks a single post's content against all rules/keywords and updates $stats in-place.
 	 *
-	 * @param array<int, array<string, mixed>> $keywords
+	 * Mirrors the linker's priority-based logic: keywords within a rule are processed
+	 * in priority order (ASC), and matched text is consumed from a working copy of the
+	 * content so that lower-priority keywords cannot count the same text twice.
+	 *
+	 * @param array<int, array<string, mixed>> $rules  Output of get_active_rules_with_keywords().
 	 * @param array<string, array<string, mixed>> $stats
 	 */
-	private function scan_post_for_keywords( \WP_Post $post, array $keywords, array &$stats ): void {
+	private function scan_post_for_keywords( \WP_Post $post, array $rules, array &$stats ): void {
 		$content = $post->post_content;
 		if ( '' === trim( $content ) ) {
 			return;
@@ -812,24 +810,35 @@ class VTAIL_Admin {
 
 		$permalink = (string) get_permalink( $post );
 
-		foreach ( $keywords as $kw ) {
-			// Mirror the linker's self-link prevention: skip if post IS the target URL.
-			if ( $this->is_target_page( (string) ( $kw['rule_url'] ?? '' ), $permalink ) ) {
+		foreach ( $rules as $rule ) {
+			if ( $this->is_target_page( (string) $rule['url'], $permalink ) ) {
 				continue;
 			}
 
-			$pattern = $this->build_scan_pattern( (string) $kw['keyword'], (bool) $kw['case_sensitive'] );
-			if ( ! preg_match( $pattern, $content ) ) {
-				continue;
-			}
+			// Per-rule working copy so keyword priority consumption stays rule-scoped.
+			$working = $content;
 
-			$key = (string) $kw['id'];
-			if ( ! isset( $stats[ $key ] ) ) {
-				$stats[ $key ] = [ 'count' => 0, 'posts' => [] ];
-			}
-			if ( ! in_array( $post->ID, $stats[ $key ]['posts'], true ) ) {
-				$stats[ $key ]['posts'][] = $post->ID;
-				++$stats[ $key ]['count'];
+			foreach ( $rule['keywords'] as $kw ) {
+				if ( ! (int) ( $kw['active'] ?? 0 ) ) {
+					continue;
+				}
+
+				$pattern = $this->build_scan_pattern( (string) $kw['keyword'], (bool) $kw['case_sensitive'] );
+				if ( ! preg_match( $pattern, $working ) ) {
+					continue;
+				}
+
+				$key = (string) $kw['id'];
+				if ( ! isset( $stats[ $key ] ) ) {
+					$stats[ $key ] = [ 'count' => 0, 'posts' => [] ];
+				}
+				if ( ! in_array( $post->ID, $stats[ $key ]['posts'], true ) ) {
+					$stats[ $key ]['posts'][] = $post->ID;
+					++$stats[ $key ]['count'];
+				}
+
+				// Consume matched text so lower-priority keywords don't re-match the same span.
+				$working = (string) preg_replace( $pattern, ' ', $working );
 			}
 		}
 	}
