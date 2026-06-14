@@ -7,7 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-## [1.1.0] - 2026-06-14
+## [1.1.1] - 2026-06-14
+
+### Added
+- Rules list table: ID column, Title column, and per-keyword text with stats count in Keywords column
+- Rules list table: "Update Link Stats" scan button moved to page-title area for better visibility
+
+### Changed
+- Keywords column displays each keyword's text and link count instead of a bare keyword count
+- URL column is always rendered LTR/left-aligned regardless of site direction
+- Row actions (Edit / Delete) moved from URL column to Title column
+
+### Fixed
+- Stats scan now processes keywords within each rule in priority order using a per-rule working copy of the content; lower-priority keywords no longer count matches already consumed by a higher-priority keyword in the same rule
+
+---
+
+## [1.1.0] - 2026-06-13
 
 ### Added
 - Multi-keyword rule system: each URL rule now holds multiple keywords managed from a single edit screen
