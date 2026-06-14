@@ -5,10 +5,10 @@
 #
 msgid ""
 msgstr ""
-"Project-Id-Version: VT Auto Internal Linker 1.0.0\n"
+"Project-Id-Version: VT Auto Internal Linker 1.1.0\n"
 "Report-Msgid-Bugs-To: mahmoudk.v92@gmail.com\n"
-"POT-Creation-Date: 2026-06-04T00:00:00+00:00\n"
-"PO-Revision-Date: 2026-06-04T00:00:00+00:00\n"
+"POT-Creation-Date: 2026-06-13T00:00:00+00:00\n"
+"PO-Revision-Date: 2026-06-13T00:00:00+00:00\n"
 "Last-Translator: Mahmoud Kazemi <mahmoudk.v92@gmail.com>\n"
 "Language-Team: Persian\n"
 "Language: fa_IR\n"
@@ -18,98 +18,299 @@ msgstr ""
 "Plural-Forms: nplurals=1; plural=0;\n"
 "X-Domain: vt-auto-internal-linker\n"
 
-#: includes/class-admin.php:34 includes/class-admin.php:323
-msgid "Keyword"
-msgstr "کلیدواژه"
+#: includes/class-admin.php:34 includes/class-admin.php:395
+#: includes/class-admin.php:628
+msgid "Target URL"
+msgstr "آدرس مقصد"
 
-#: includes/class-admin.php:35 includes/class-admin.php:327
-msgid "URL"
-msgstr "آدرس"
+#: includes/class-admin.php:35 includes/class-admin.php:424
+msgid "Keywords"
+msgstr "کلیدواژه‌ها"
 
-#: includes/class-admin.php:36
+#: includes/class-admin.php:36 includes/class-admin.php:429
 msgid "Max / Post"
 msgstr "حداکثر / نوشته"
 
-#: includes/class-admin.php:37 includes/class-admin.php:346
+#: includes/class-admin.php:37 includes/class-admin.php:409
+#: includes/class-admin.php:435 includes/class-admin.php:507
 msgid "Active"
 msgstr "فعال"
 
-#: includes/class-admin.php:88
+#: includes/class-admin.php:79 includes/class-admin.php:579
+#: includes/class-admin.php:650 includes/class-admin.php:662
 msgid "Edit"
 msgstr "ویرایش"
 
-#: includes/class-admin.php:93
+#: includes/class-admin.php:80
+msgid "Delete this rule and all its keywords?"
+msgstr "این قانون و تمام کلیدواژه‌های آن حذف شود؟"
+
+#: includes/class-admin.php:80 includes/class-admin.php:581
 msgid "Delete"
 msgstr "حذف"
 
-#: includes/class-admin.php:120
+#: includes/class-admin.php:99
 msgid "Yes"
 msgstr "بله"
 
-#: includes/class-admin.php:121
+#: includes/class-admin.php:100
 msgid "No"
 msgstr "خیر"
 
-#: includes/class-admin.php:133 includes/class-admin.php:134
+#: includes/class-admin.php:112 includes/class-admin.php:113
 msgid "Auto Internal Linker"
 msgstr "لینک‌ساز داخلی خودکار"
 
-#: includes/class-admin.php:169 includes/class-admin.php:228
-msgid "Add New Rule"
-msgstr "افزودن قانون جدید"
+#: includes/class-admin.php:148 includes/class-admin.php:184
+#: includes/class-admin.php:222
+msgid "Permission denied."
+msgstr "دسترسی مجاز نیست."
 
-#: includes/class-admin.php:190
-msgid "Security check failed."
-msgstr "بررسی امنیتی با شکست روبرو شد."
+#: includes/class-admin.php:155
+msgid "Invalid rule."
+msgstr "قانون نامعتبر."
 
-#: includes/class-admin.php:201
-msgid "Rule deleted successfully."
-msgstr "قانون با موفقیت حذف شد."
-
-#: includes/class-admin.php:204
-msgid "Rule saved successfully."
-msgstr "قانون با موفقیت ذخیره شد."
-
-#: includes/class-admin.php:227
-msgid "Edit Rule"
-msgstr "ویرایش قانون"
-
-#: includes/class-admin.php:249
+#: includes/class-admin.php:161
 msgid "Keyword is required."
 msgstr "کلیدواژه الزامی است."
 
-#: includes/class-admin.php:252
+#: includes/class-admin.php:170
+msgid "Failed to save keyword."
+msgstr "ذخیره کلیدواژه با خطا مواجه شد."
+
+#: includes/class-admin.php:228
+msgid "Failed to delete keyword."
+msgstr "حذف کلیدواژه با خطا مواجه شد."
+
+#: includes/class-admin.php:248 includes/class-admin.php:338
+msgid "Add New Rule"
+msgstr "افزودن قانون جدید"
+
+#: includes/class-admin.php:268
+msgid "Security check failed."
+msgstr "بررسی امنیتی با شکست روبرو شد."
+
+#: includes/class-admin.php:279
+msgid "Rule deleted successfully."
+msgstr "قانون با موفقیت حذف شد."
+
+#: includes/class-admin.php:282
+msgid "Rule saved successfully."
+msgstr "قانون با موفقیت ذخیره شد."
+
+#: includes/class-admin.php:285
+msgid "Settings saved."
+msgstr "تنظیمات ذخیره شد."
+
+#: includes/class-admin.php:309
+msgid "Global Settings"
+msgstr "تنظیمات عمومی"
+
+#: includes/class-admin.php:313
+msgid "Exclude Tags"
+msgstr "تگ‌های استثنا"
+
+#: includes/class-admin.php:315
+msgid "Comma-separated HTML tags to skip during linking (e.g. h1,h2,h3)"
+msgstr "تگ‌های HTML که از لینک‌سازی خودکار مستثنی می‌شوند، با ویرگول جدا شوند (مثال: h1,h2,h3)"
+
+#: includes/class-admin.php:317
+msgid "Save Settings"
+msgstr "ذخیره تنظیمات"
+
+#: includes/class-admin.php:337
+msgid "Edit Rule"
+msgstr "ویرایش قانون"
+
+#: includes/class-admin.php:355
 msgid "URL is required."
 msgstr "آدرس الزامی است."
 
-#: includes/class-admin.php:308
+#: includes/class-admin.php:375
 msgid "Back to Rules"
 msgstr "بازگشت به قوانین"
 
-#: includes/class-admin.php:316
+#: includes/class-admin.php:382
 msgid "Update Rule"
 msgstr "به‌روزرسانی قانون"
 
-#: includes/class-admin.php:316
+#: includes/class-admin.php:382
 msgid "Add Rule"
 msgstr "افزودن قانون"
 
-#: includes/class-admin.php:331
-msgid "Max per Post"
-msgstr "حداکثر به ازای هر نوشته"
+#: includes/class-admin.php:388
+msgid "Save the rule first, then you can add keywords."
+msgstr "ابتدا قانون را ذخیره کنید، سپس می‌توانید کلیدواژه اضافه کنید."
 
-#: includes/class-admin.php:335
+#: includes/class-admin.php:398
+msgid "Full URL including https://"
+msgstr "آدرس کامل شامل https://"
+
+#: includes/class-admin.php:402
+msgid "Max Links / Post"
+msgstr "حداکثر لینک / نوشته"
+
+#: includes/class-admin.php:405
+msgid "Maximum total links to this URL in a single post (across all keywords)."
+msgstr "حداکثر تعداد کل لینک‌ها به این آدرس در یک نوشته (برای همه کلیدواژه‌ها)"
+
+#: includes/class-admin.php:428 includes/class-admin.php:470
+msgid "Keyword"
+msgstr "کلیدواژه"
+
+#: includes/class-admin.php:430 includes/class-admin.php:481
 msgid "Priority"
 msgstr "اولویت"
 
-#: includes/class-admin.php:343
+#: includes/class-admin.php:431 includes/class-admin.php:488
+msgid "Total Limit"
+msgstr "محدودیت کل"
+
+#: includes/class-admin.php:432 includes/class-admin.php:613
+#: includes/class-admin.php:623
+msgid "Link Stats"
+msgstr "آمار لینک‌ها"
+
+#: includes/class-admin.php:433
+msgid "Anchor (#)"
+msgstr "لنگر (#)"
+
+#: includes/class-admin.php:434
+msgid "Settings"
+msgstr "تنظیمات"
+
+#: includes/class-admin.php:436
+msgid "Actions"
+msgstr "عملیات"
+
+#: includes/class-admin.php:441
+msgid "No keywords yet. Add the first one below."
+msgstr "هنوز کلیدواژه‌ای ثبت نشده. اولین مورد را در پایین اضافه کنید."
+
+#: includes/class-admin.php:452
+msgid "+ Add Keyword"
+msgstr "+ افزودن کلیدواژه"
+
+#: includes/class-admin.php:463 includes/class-plugin.php:40
+msgid "Add Keyword"
+msgstr "افزودن کلیدواژه"
+
+#: includes/class-admin.php:474
+msgid "Max per Post"
+msgstr "حداکثر به ازای هر نوشته"
+
+#: includes/class-admin.php:477
+msgid "Max times this keyword is linked in a single post."
+msgstr "حداکثر دفعاتی که این کلیدواژه در یک نوشته لینک می‌شود."
+
+#: includes/class-admin.php:484
+msgid "Lower number = higher priority. Used when rule max/post is 1 and multiple keywords match."
+msgstr "عدد کمتر = اولویت بالاتر. وقتی حداکثر قانون/نوشته ۱ است و چند کلیدواژه در یک نوشته پیدا شوند."
+
+#: includes/class-admin.php:491
+msgid "0 = unlimited. Stop linking once this many links exist across the entire site."
+msgstr "۰ = بدون محدودیت. پس از رسیدن به این تعداد لینک در کل سایت، لینک‌سازی متوقف می‌شود."
+
+#: includes/class-admin.php:495
+msgid "Anchor Section"
+msgstr "بخش لنگر"
+
+#: includes/class-admin.php:497
+msgid "e.g. about"
+msgstr "مثال: about"
+
+#: includes/class-admin.php:498
+msgid "Optional. Links to a specific section of the target page (e.g. \"about\" → URL#about)."
+msgstr "اختیاری. به بخش مشخصی از صفحه مقصد لینک می‌دهد (مثال: «about» ← URL#about)."
+
+#: includes/class-admin.php:502
+msgid "Options"
+msgstr "گزینه‌ها"
+
+#: includes/class-admin.php:504
 msgid "Case Sensitive"
 msgstr "حساس به بزرگی و کوچکی حروف"
 
-#: includes/class-admin.php:344
+#: includes/class-admin.php:505
 msgid "Nofollow"
 msgstr "نوفالو"
 
-#: includes/class-admin.php:345
+#: includes/class-admin.php:506
 msgid "Open in New Tab"
 msgstr "باز کردن در برگه‌ی جدید"
+
+#: includes/class-admin.php:511
+msgid "Save Keyword"
+msgstr "ذخیره کلیدواژه"
+
+#: includes/class-admin.php:511
+msgid "Saving..."
+msgstr "در حال ذخیره..."
+
+#: includes/class-admin.php:512
+msgid "Cancel"
+msgstr "انصراف"
+
+#: includes/class-admin.php:593
+msgid "Aa"
+msgstr "Aa"
+
+#: includes/class-admin.php:595
+msgid "NF"
+msgstr "NF"
+
+#: includes/class-admin.php:614
+msgid "Keyword not found."
+msgstr "کلیدواژه یافت نشد."
+
+#: includes/class-admin.php:624
+msgid "Back to Rule"
+msgstr "بازگشت به قانون"
+
+#: includes/class-admin.php:627 includes/class-admin.php:649
+msgid "URL"
+msgstr "آدرس"
+
+#: includes/class-admin.php:629
+msgid "Total Links Found"
+msgstr "مجموع لینک‌های یافت‌شده"
+
+#: includes/class-admin.php:642
+msgid "No links found yet. Run the stats scan to update."
+msgstr "هنوز لینکی یافت نشده. برای به‌روزرسانی، اسکن آمار را اجرا کنید."
+
+#: includes/class-admin.php:646
+msgid "Posts / Pages with this link"
+msgstr "نوشته‌ها / صفحاتی که این لینک را دارند"
+
+#: includes/class-admin.php:648
+msgid "Title"
+msgstr "عنوان"
+
+#: includes/class-admin.php:681
+msgid "Update Link Stats"
+msgstr "به‌روزرسانی آمار لینک‌ها"
+
+#: includes/class-plugin.php:41
+msgid "Edit Keyword"
+msgstr "ویرایش کلیدواژه"
+
+#: includes/class-plugin.php:42
+msgid "Delete this keyword?"
+msgstr "این کلیدواژه حذف شود؟"
+
+#: includes/class-plugin.php:44
+msgid "An error occurred. Please try again."
+msgstr "خطایی رخ داد. لطفاً دوباره تلاش کنید."
+
+#: includes/class-plugin.php:46
+msgid "Starting scan…"
+msgstr "شروع اسکن..."
+
+#: includes/class-plugin.php:47
+msgid "Scanning: %1 / %2 posts"
+msgstr "در حال اسکن: %1 از %2 نوشته"
+
+#: includes/class-plugin.php:48
+msgid "Done — % posts scanned."
+msgstr "اتمام — % نوشته اسکن شد."
