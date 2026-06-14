@@ -819,10 +819,7 @@ class VTAIL_Admin {
 			$working = $content;
 
 			foreach ( $rule['keywords'] as $kw ) {
-				if ( ! (int) ( $kw['active'] ?? 0 ) ) {
-					continue;
-				}
-
+				// get_active_rules_with_keywords() already filters k.active = 1; no extra check needed.
 				$pattern = $this->build_scan_pattern( (string) $kw['keyword'], (bool) $kw['case_sensitive'] );
 				if ( ! preg_match( $pattern, $working ) ) {
 					continue;
