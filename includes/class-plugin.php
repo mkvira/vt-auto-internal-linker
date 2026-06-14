@@ -14,8 +14,6 @@ if ( ! defined( 'ABSPATH' ) ) {
 class VTAIL_Plugin {
 
 	public function init(): void {
-		load_plugin_textdomain( 'vt-auto-internal-linker', false, plugin_basename( VTAIL_PATH ) . '/languages' );
-
 		VTAIL_Rules_DB::maybe_upgrade();
 
 		require_once VTAIL_PATH . 'includes/class-admin.php';

@@ -159,7 +159,7 @@ class VTAIL_Admin {
 			return;
 		}
 
-		$action = isset( $_GET['action'] ) ? sanitize_key( $_GET['action'] ) : '';
+		$action = isset( $_GET['action'] ) ? sanitize_key( $_GET['action'] ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- routing read only, no data processed
 
 		if ( 'stats' === $action ) {
 			$this->render_stats_page();
@@ -277,6 +277,7 @@ class VTAIL_Admin {
 	 * Called via add_action('admin_init') so wp_safe_redirect() always works.
 	 */
 	public function handle_early_forms(): void {
+		// phpcs:disable WordPress.Security.NonceVerification.Recommended -- routing reads only; nonce is verified inside each action handler
 		if ( ! isset( $_GET['page'] ) || 'vtail-rules' !== sanitize_key( $_GET['page'] ) ) {
 			return;
 		}
@@ -285,17 +286,19 @@ class VTAIL_Admin {
 		}
 
 		$get_action = isset( $_GET['action'] ) ? sanitize_key( $_GET['action'] ) : '';
+		// phpcs:enable WordPress.Security.NonceVerification.Recommended
 
 		if ( 'delete' === $get_action ) {
 			$this->process_delete_rule();
 			return;
 		}
 
-		if ( 'POST' !== $_SERVER['REQUEST_METHOD'] ) {
+		$request_method = isset( $_SERVER['REQUEST_METHOD'] ) ? sanitize_text_field( wp_unslash( $_SERVER['REQUEST_METHOD'] ) ) : '';
+		if ( 'POST' !== $request_method ) {
 			return;
 		}
 
-		if ( ! empty( $_POST['vtail_settings_nonce'] ) ) {
+		if ( ! empty( $_POST['vtail_settings_nonce'] ) ) { // phpcs:ignore WordPress.Security.NonceVerification.Missing -- nonce is verified inside process_settings_save() via check_admin_referer()
 			$this->process_settings_save();
 			return;
 		}
@@ -371,6 +374,7 @@ class VTAIL_Admin {
 	}
 
 	private function show_notice(): void {
+		// phpcs:disable WordPress.Security.NonceVerification.Recommended -- PRG redirect params set by this plugin; display only
 		if ( ! empty( $_GET['deleted'] ) ) {
 			echo '<div class="notice notice-success is-dismissible"><p>' . esc_html__( 'Rule deleted successfully.', 'vt-auto-internal-linker' ) . '</p></div>';
 		}
@@ -380,6 +384,7 @@ class VTAIL_Admin {
 		if ( ! empty( $_GET['settings_saved'] ) ) {
 			echo '<div class="notice notice-success is-dismissible"><p>' . esc_html__( 'Settings saved.', 'vt-auto-internal-linker' ) . '</p></div>';
 		}
+		// phpcs:enable WordPress.Security.NonceVerification.Recommended
 	}
 
 	private function render_settings_section(): void {
@@ -404,7 +409,7 @@ class VTAIL_Admin {
 	// -------------------------------------------------------------------------
 
 	private function render_form_page( string $action ): void {
-		$id    = isset( $_GET['id'] ) ? absint( $_GET['id'] ) : 0;
+		$id    = isset( $_GET['id'] ) ? absint( $_GET['id'] ) : 0; // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read for display; nonce verified on form submit
 		$rule  = $id > 0 ? VTAIL_Rules_DB::get_rule_by_id( $id ) : null;
 		$error = $this->form_error;
 
@@ -676,7 +681,7 @@ class VTAIL_Admin {
 	// -------------------------------------------------------------------------
 
 	private function render_stats_page(): void {
-		$keyword_id = isset( $_GET['keyword_id'] ) ? absint( $_GET['keyword_id'] ) : 0;
+		$keyword_id = isset( $_GET['keyword_id'] ) ? absint( $_GET['keyword_id'] ) : 0; // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read for display only
 		$kw         = $keyword_id ? VTAIL_Rules_DB::get_keyword_by_id( $keyword_id ) : null;
 
 		if ( ! $kw ) {
@@ -745,8 +750,7 @@ class VTAIL_Admin {
 	 * $css_class: 'page-title-action' for header placement, 'button' for inline placement.
 	 */
 	private function render_scan_trigger( string $css_class = 'button', bool $reload_on_done = false ): void {
-		$reload_attr = $reload_on_done ? ' data-reload="true"' : '';
-		echo '<button type="button" id="vtail-run-scan" class="' . esc_attr( $css_class ) . '"' . $reload_attr . '>';
+		echo '<button type="button" id="vtail-run-scan" class="' . esc_attr( $css_class ) . '"' . ( $reload_on_done ? ' data-reload="true"' : '' ) . '>';
 		echo esc_html__( 'Update Link Stats', 'vt-auto-internal-linker' );
 		echo '</button>';
 	}
@@ -885,18 +889,21 @@ class VTAIL_Admin {
 	 * @return array<string, mixed>
 	 */
 	private function extract_rule_post_values(): array {
+		// phpcs:disable WordPress.Security.NonceVerification.Missing -- nonce verified in caller before this method is invoked
 		return [
 			'title'        => sanitize_text_field( wp_unslash( $_POST['title'] ?? '' ) ),
 			'url'          => esc_url_raw( wp_unslash( $_POST['url'] ?? '' ) ),
 			'max_per_post' => absint( $_POST['max_per_post'] ?? 1 ),
 			'active'       => absint( $_POST['active'] ?? 0 ),
 		];
+		// phpcs:enable WordPress.Security.NonceVerification.Missing
 	}
 
 	/**
 	 * @return array<string, mixed>
 	 */
 	private function extract_keyword_post_values( int $rule_id ): array {
+		// phpcs:disable WordPress.Security.NonceVerification.Missing -- nonce verified in caller via check_ajax_referer()
 		return [
 			'rule_id'        => $rule_id,
 			'keyword'        => sanitize_text_field( wp_unslash( $_POST['keyword'] ?? '' ) ),
@@ -909,5 +916,6 @@ class VTAIL_Admin {
 			'new_tab'        => absint( $_POST['new_tab'] ?? 0 ),
 			'active'         => absint( $_POST['active'] ?? 0 ),
 		];
+		// phpcs:enable WordPress.Security.NonceVerification.Missing
 	}
 }

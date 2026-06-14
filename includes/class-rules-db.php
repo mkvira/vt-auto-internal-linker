@@ -113,31 +113,38 @@ class VTAIL_Rules_DB {
 
 		self::create_keywords_table();
 
+		// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
 		$rules = $wpdb->get_results(
 			"SELECT id, keyword, case_sensitive, max_per_post, nofollow, new_tab, priority
 			 FROM {$wpdb->prefix}vtail_rules
 			 WHERE keyword != ''",
 			ARRAY_A
 		);
+		// phpcs:enable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
 
 		if ( empty( $rules ) ) {
 			return;
 		}
 
-		$keywords_table = $wpdb->prefix . 'vtail_keywords';
+		$keywords_table = esc_sql( $wpdb->prefix . 'vtail_keywords' );
 
 		foreach ( $rules as $rule ) {
+			// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+			// phpcs:disable WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- table name is esc_sql()'d from $wpdb->prefix
 			$already_migrated = $wpdb->get_var(
 				$wpdb->prepare(
 					"SELECT COUNT(*) FROM {$keywords_table} WHERE rule_id = %d",
 					$rule['id']
 				)
 			);
+			// phpcs:enable WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+			// phpcs:enable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
 
 			if ( $already_migrated > 0 ) {
 				continue;
 			}
 
+			// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
 			$wpdb->insert(
 				$keywords_table,
 				[
@@ -154,6 +161,7 @@ class VTAIL_Rules_DB {
 				],
 				[ '%d', '%s', '%d', '%d', '%d', '%d', '%d', '%d', '%s', '%d' ]
 			);
+			// phpcs:enable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
 		}
 	}
 
@@ -172,9 +180,11 @@ class VTAIL_Rules_DB {
 	private static function upgrade_to_v3(): void {
 		global $wpdb;
 
+		// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
 		$wpdb->query(
 			"UPDATE {$wpdb->prefix}vtail_keywords SET anchor = '' WHERE anchor = '0'"
 		);
+		// phpcs:enable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
 	}
 
 	// -------------------------------------------------------------------------
@@ -189,9 +199,11 @@ class VTAIL_Rules_DB {
 	public static function get_all_rules(): array {
 		global $wpdb;
 
-		$rules_table    = $wpdb->prefix . 'vtail_rules';
-		$keywords_table = $wpdb->prefix . 'vtail_keywords';
+		$rules_table    = esc_sql( $wpdb->prefix . 'vtail_rules' );
+		$keywords_table = esc_sql( $wpdb->prefix . 'vtail_keywords' );
 
+		// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+		// phpcs:disable WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- table names are esc_sql()'d from $wpdb->prefix
 		return $wpdb->get_results(
 			"SELECT r.id, r.title, r.url, r.max_per_post, r.active, r.created_at,
 			        GROUP_CONCAT(k.id ORDER BY k.priority ASC, k.id ASC SEPARATOR ',') AS keyword_ids,
@@ -202,6 +214,8 @@ class VTAIL_Rules_DB {
 			 ORDER BY r.id ASC",
 			ARRAY_A
 		) ?? [];
+		// phpcs:enable WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		// phpcs:enable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
 	}
 
 	/**
@@ -212,6 +226,7 @@ class VTAIL_Rules_DB {
 	public static function get_rule_by_id( int $id ): ?array {
 		global $wpdb;
 
+		// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
 		$row = $wpdb->get_row(
 			$wpdb->prepare(
 				"SELECT id, title, url, max_per_post, active
@@ -221,6 +236,7 @@ class VTAIL_Rules_DB {
 			),
 			ARRAY_A
 		);
+		// phpcs:enable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
 
 		return $row ?? null;
 	}
@@ -237,11 +253,13 @@ class VTAIL_Rules_DB {
 			return null;
 		}
 
+		// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
 		$result = $wpdb->insert(
 			$wpdb->prefix . 'vtail_rules',
 			$clean,
 			self::get_rule_formats( $clean )
 		);
+		// phpcs:enable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
 
 		return false === $result ? null : $wpdb->insert_id;
 	}
@@ -253,6 +271,7 @@ class VTAIL_Rules_DB {
 		global $wpdb;
 
 		$clean  = self::sanitize_rule_fields( $data );
+		// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
 		$result = $wpdb->update(
 			$wpdb->prefix . 'vtail_rules',
 			$clean,
@@ -260,6 +279,7 @@ class VTAIL_Rules_DB {
 			self::get_rule_formats( $clean ),
 			[ '%d' ]
 		);
+		// phpcs:enable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
 
 		return false !== $result;
 	}
@@ -275,9 +295,10 @@ class VTAIL_Rules_DB {
 			self::delete_keyword_stats( (int) $kw['id'] );
 		}
 
+		// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
 		$wpdb->delete( $wpdb->prefix . 'vtail_keywords', [ 'rule_id' => $id ], [ '%d' ] );
-
 		$result = $wpdb->delete( $wpdb->prefix . 'vtail_rules', [ 'id' => $id ], [ '%d' ] );
+		// phpcs:enable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
 
 		return false !== $result;
 	}
@@ -294,6 +315,7 @@ class VTAIL_Rules_DB {
 	public static function get_keyword_by_id( int $id ): ?array {
 		global $wpdb;
 
+		// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
 		$row = $wpdb->get_row(
 			$wpdb->prepare(
 				"SELECT * FROM {$wpdb->prefix}vtail_keywords WHERE id = %d",
@@ -301,6 +323,7 @@ class VTAIL_Rules_DB {
 			),
 			ARRAY_A
 		);
+		// phpcs:enable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
 
 		return $row ?? null;
 	}
@@ -313,7 +336,8 @@ class VTAIL_Rules_DB {
 	public static function get_keywords_by_rule( int $rule_id ): array {
 		global $wpdb;
 
-		return $wpdb->get_results(
+		// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+		$rows = $wpdb->get_results(
 			$wpdb->prepare(
 				"SELECT * FROM {$wpdb->prefix}vtail_keywords
 				 WHERE rule_id = %d
@@ -321,7 +345,10 @@ class VTAIL_Rules_DB {
 				$rule_id
 			),
 			ARRAY_A
-		) ?? [];
+		);
+		// phpcs:enable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+
+		return $rows ?? [];
 	}
 
 	/**
@@ -336,11 +363,13 @@ class VTAIL_Rules_DB {
 			return null;
 		}
 
+		// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
 		$result = $wpdb->insert(
 			$wpdb->prefix . 'vtail_keywords',
 			$clean,
 			self::get_keyword_formats( $clean )
 		);
+		// phpcs:enable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
 
 		return false === $result ? null : $wpdb->insert_id;
 	}
@@ -352,6 +381,7 @@ class VTAIL_Rules_DB {
 		global $wpdb;
 
 		$clean  = self::sanitize_keyword_fields( $data );
+		// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
 		$result = $wpdb->update(
 			$wpdb->prefix . 'vtail_keywords',
 			$clean,
@@ -359,6 +389,7 @@ class VTAIL_Rules_DB {
 			self::get_keyword_formats( $clean ),
 			[ '%d' ]
 		);
+		// phpcs:enable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
 
 		return false !== $result;
 	}
@@ -371,7 +402,9 @@ class VTAIL_Rules_DB {
 
 		self::delete_keyword_stats( $id );
 
+		// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
 		$result = $wpdb->delete( $wpdb->prefix . 'vtail_keywords', [ 'id' => $id ], [ '%d' ] );
+		// phpcs:enable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
 
 		return false !== $result;
 	}
@@ -395,30 +428,27 @@ class VTAIL_Rules_DB {
 
 		global $wpdb;
 
+		$r = esc_sql( $wpdb->prefix . 'vtail_rules' );
+		$k = esc_sql( $wpdb->prefix . 'vtail_keywords' );
+
+		// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+		// phpcs:disable WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- table names are esc_sql()'d from $wpdb->prefix, no user input
 		$rows = $wpdb->get_results(
-			self::build_active_rules_query( $wpdb ),
+			"SELECT r.id AS rule_id, r.url, r.max_per_post AS rule_max_per_post,
+			        k.id AS keyword_id, k.keyword, k.max_per_post, k.priority,
+			        k.total_limit, k.case_sensitive, k.nofollow, k.new_tab, k.anchor
+			 FROM {$r} r
+			 INNER JOIN {$k} k ON k.rule_id = r.id
+			 WHERE r.active = 1 AND k.active = 1
+			 ORDER BY r.id ASC, k.priority ASC, k.id ASC",
 			ARRAY_A
 		);
+		// phpcs:enable WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		// phpcs:enable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
 
 		$cache = self::group_rules_with_keywords( $rows ?? [] );
 
 		return $cache;
-	}
-
-	/**
-	 * Builds the JOIN query string for get_active_rules_with_keywords().
-	 */
-	private static function build_active_rules_query( \wpdb $wpdb ): string {
-		$r = $wpdb->prefix . 'vtail_rules';
-		$k = $wpdb->prefix . 'vtail_keywords';
-
-		return "SELECT r.id AS rule_id, r.url, r.max_per_post AS rule_max_per_post,
-		               k.id AS keyword_id, k.keyword, k.max_per_post, k.priority,
-		               k.total_limit, k.case_sensitive, k.nofollow, k.new_tab, k.anchor
-		        FROM {$r} r
-		        INNER JOIN {$k} k ON k.rule_id = r.id
-		        WHERE r.active = 1 AND k.active = 1
-		        ORDER BY r.id ASC, k.priority ASC, k.id ASC";
 	}
 
 	/**
@@ -511,11 +541,13 @@ class VTAIL_Rules_DB {
 	public static function get_all(): array {
 		global $wpdb;
 
-		$table   = $wpdb->prefix . 'vtail_rules';
+		$table   = esc_sql( $wpdb->prefix . 'vtail_rules' );
+		// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 		$results = $wpdb->get_results(
 			"SELECT * FROM {$table} ORDER BY priority ASC, id ASC",
 			ARRAY_A
 		);
+		// phpcs:enable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 
 		return $results ?? [];
 	}
@@ -524,11 +556,13 @@ class VTAIL_Rules_DB {
 	public static function get_by_id( int $id ): ?array {
 		global $wpdb;
 
-		$table = $wpdb->prefix . 'vtail_rules';
+		$table = esc_sql( $wpdb->prefix . 'vtail_rules' );
+		// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 		$row   = $wpdb->get_row(
 			$wpdb->prepare( "SELECT * FROM {$table} WHERE id = %d", $id ),
 			ARRAY_A
 		);
+		// phpcs:enable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 
 		return $row ?? null;
 	}
@@ -538,11 +572,13 @@ class VTAIL_Rules_DB {
 		global $wpdb;
 
 		$clean  = self::sanitize_rule_data( $data );
+		// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
 		$result = $wpdb->insert(
 			$wpdb->prefix . 'vtail_rules',
 			$clean,
 			self::get_column_formats( $clean )
 		);
+		// phpcs:enable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
 
 		return false === $result ? null : $wpdb->insert_id;
 	}
@@ -552,6 +588,7 @@ class VTAIL_Rules_DB {
 		global $wpdb;
 
 		$clean  = self::sanitize_rule_data( $data );
+		// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
 		$result = $wpdb->update(
 			$wpdb->prefix . 'vtail_rules',
 			$clean,
@@ -559,6 +596,7 @@ class VTAIL_Rules_DB {
 			self::get_column_formats( $clean ),
 			[ '%d' ]
 		);
+		// phpcs:enable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
 
 		return false !== $result;
 	}
@@ -567,11 +605,13 @@ class VTAIL_Rules_DB {
 	public static function delete( int $id ): bool {
 		global $wpdb;
 
+		// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
 		$result = $wpdb->delete(
 			$wpdb->prefix . 'vtail_rules',
 			[ 'id' => $id ],
 			[ '%d' ]
 		);
+		// phpcs:enable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
 
 		return false !== $result;
 	}
