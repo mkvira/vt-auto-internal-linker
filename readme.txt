@@ -2,7 +2,7 @@
 Contributors: mkvira
 Tags: internal links, seo, auto linking, links, keywords
 Requires at least: 5.5
-Tested up to: 6.7
+Tested up to: 6.8
 Stable tag: 1.1.1
 Requires PHP: 7.4
 License: GPL-2.0-or-later
