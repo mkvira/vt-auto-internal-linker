@@ -3,7 +3,7 @@
  * Plugin Name:       VT Auto Internal Linker
  * Plugin URI:        https://vira-team.com
  * Description:       Automatically inserts internal links into post/page content based on user-defined keyword→URL rules.
- * Version:           1.1.2
+ * Version:           1.1.3
  * Requires at least: 5.5
  * Requires PHP:      7.4
  * Author:            Mahmoud Kazemi
@@ -22,7 +22,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-define( 'VTAIL_VERSION', '1.1.2' );
+define( 'VTAIL_VERSION', '1.1.3' );
 define( 'VTAIL_DB_VERSION', 4 );
 define( 'VTAIL_PATH', plugin_dir_path( __FILE__ ) );
 define( 'VTAIL_URL', plugin_dir_url( __FILE__ ) );

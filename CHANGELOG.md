@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.1.3] - 2026-06-14
+
+### Fixed
+- Resolved all Plugin Check warnings for WordPress.org compliance:
+  - Removed deprecated `load_plugin_textdomain()` call (auto-loaded by WP 4.6+)
+  - Fixed unescaped `$reload_attr` output in admin scan trigger button
+  - Added `isset()` validation for `$_SERVER['REQUEST_METHOD']`
+  - Added `phpcs:disable/enable` blocks for direct `$wpdb` calls in `class-rules-db.php` (custom tables have no WP_Query alternative)
+  - Applied `esc_sql()` to all custom table name variables before query interpolation
+  - Inlined `build_active_rules_query()` to eliminate false-positive PluginCheck SQL errors
+  - Added nonce-verification suppression annotations for routing-only `$_GET` reads and helper methods where nonce is verified by callers
+
+---
+
 ## [1.1.2] - 2026-06-14
 
 ### Added
